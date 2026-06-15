@@ -48,6 +48,10 @@
     background: $muted;
 }
 
+.play {
+    background: $accent;
+}
+
 .clear {
     display: flex;
     align-items: center;
@@ -88,6 +92,13 @@
     &:hover {
         filter: brightness(1.2);
     }
+}
+
+.unresolved {
+    text-decoration: underline dotted;
+    text-decoration-color: $warning;
+    text-underline-offset: 2px;
+    cursor: help;
 }
 
 .info {

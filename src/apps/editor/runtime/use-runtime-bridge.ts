@@ -14,6 +14,8 @@ export function useRuntimeBridge() {
         running: false,
         port: 34900,
     });
+    // Whether Studio is currently in a play-test (reported by the plugin).
+    const [playtest, setPlaytest] = useState(false);
 
     // Studio can emit a burst of lines on play-test start; buffer and flush on a
     // timer so a burst costs one render instead of hundreds (mirrors the sync log).
@@ -36,9 +38,14 @@ export function useRuntimeBridge() {
         // read its status and stream messages — never start/stop it from React.
         invoke<RuntimeStatus>("runtime_bridge_status").then(setStatus).catch(() => {});
 
-        const unlistenMsg = listen<{ messages: RuntimeMessage[] }>(
+        const unlistenMsg = listen<{ messages?: RuntimeMessage[]; running?: boolean }>(
             "runtime://message",
-            (event) => push(event.payload.messages ?? [])
+            (event) => {
+                if (typeof event.payload.running === "boolean") {
+                    setPlaytest(event.payload.running);
+                }
+                push(event.payload.messages ?? []);
+            }
         );
 
         return () => {
@@ -49,5 +56,11 @@ export function useRuntimeBridge() {
 
     const clear = () => setMessages([]);
 
-    return { messages, running: status.running, port: status.port, clear };
+    return {
+        messages,
+        running: status.running,
+        port: status.port,
+        playtest,
+        clear,
+    };
 }

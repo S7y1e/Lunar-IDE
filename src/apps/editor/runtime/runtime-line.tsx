@@ -26,6 +26,8 @@ export default function RuntimeLine({ text, resolve, onOpen }: Props) {
         if (match.index > last) nodes.push(text.slice(last, match.index));
         last = PATTERN.lastIndex;
 
+        const isStackFrame = match[1] != null;
+
         if (resolve(dotPath)) {
             nodes.push(
                 <span
@@ -33,6 +35,18 @@ export default function RuntimeLine({ text, resolve, onOpen }: Props) {
                     className={styles.link}
                     onClick={() => onOpen(dotPath, line)}
                     title={`Open ${dotPath}:${line}`}
+                >
+                    {match[0]}
+                </span>
+            );
+        } else if (isStackFrame) {
+            // A real stack frame that doesn't exist in the open project — almost
+            // always means a different project is open than the one in Studio.
+            nodes.push(
+                <span
+                    key={match.index}
+                    className={styles.unresolved}
+                    title={`${dotPath} isn't in the open project — is the matching project open?`}
                 >
                     {match[0]}
                 </span>

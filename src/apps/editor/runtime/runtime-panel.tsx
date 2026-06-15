@@ -7,6 +7,7 @@ type Props = {
     messages: RuntimeMessage[];
     running: boolean;
     port: number;
+    playtest: boolean;
     onClear: () => void;
     resolve: (dotPath: string) => string | null;
     onOpen: (dotPath: string, line: number) => void;
@@ -16,6 +17,7 @@ export default function RuntimePanel({
     messages,
     running,
     port,
+    playtest,
     onClear,
     resolve,
     onOpen,
@@ -25,6 +27,11 @@ export default function RuntimePanel({
             <div className={styles.header}>
                 <span className={styles.title}>Runtime</span>
                 <span className={styles.statusRow}>
+                    {playtest && (
+                        <span className={`${styles.chip} ${styles.play}`}>
+                            ▶ Play-test
+                        </span>
+                    )}
                     <span
                         className={`${styles.chip} ${running ? styles.on : styles.off}`}
                     >

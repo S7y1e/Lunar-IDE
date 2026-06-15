@@ -22,6 +22,8 @@ import { useSyncServer } from "./sync/use-sync-server";
 import RuntimePanel from "./runtime/runtime-panel";
 import { useRuntimeBridge } from "./runtime/use-runtime-bridge";
 import { makeResolver } from "./runtime/resolve-instance";
+import { extractDiagnostics } from "./runtime/diagnostics";
+import { useRuntimeMarkers } from "./runtime/use-runtime-markers";
 import { useDataModel } from "./data-model/use-data-model";
 import ToolchainPanel from "./toolchain/toolchain-panel";
 import { useRokit } from "./toolchain/use-rokit";
@@ -96,6 +98,13 @@ function EditorBody({ path }: Props) {
         },
         [resolve, path, openFile],
     );
+
+    // Runtime errors become inline squiggles on the source line.
+    const diagnostics = useMemo(
+        () => extractDiagnostics(runtime.messages, resolve, path),
+        [runtime.messages, resolve, path],
+    );
+    useRuntimeMarkers(diagnostics);
 
     // Track which files have unsaved changes
     const [dirtyFiles, setDirtyFiles] = useState<Set<string>>(new Set());
@@ -256,6 +265,7 @@ function EditorBody({ path }: Props) {
                                 messages={runtime.messages}
                                 running={runtime.running}
                                 port={runtime.port}
+                                playtest={runtime.playtest}
                                 onClear={runtime.clear}
                                 resolve={resolve}
                                 onOpen={openLocation}
