@@ -28,6 +28,7 @@ tauri-plugin-dialog = "2"
 tauri-plugin-fs = { version = "2", features = ["watch"] }
 tauri-plugin-shell = "2"
 portable-pty = "0.8"
+tiny_http = "0.12"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = [

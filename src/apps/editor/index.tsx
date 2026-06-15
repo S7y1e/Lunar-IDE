@@ -18,6 +18,8 @@ import { useSourcemap } from "./code-editor/luau-lsp/use-sourcemap";
 import { pathToUri } from "./code-editor/luau-lsp/uri";
 import SyncPanel from "./sync/sync-panel";
 import { useSyncServer } from "./sync/use-sync-server";
+import RuntimePanel from "./runtime/runtime-panel";
+import { useRuntimeBridge } from "./runtime/use-runtime-bridge";
 import ToolchainPanel from "./toolchain/toolchain-panel";
 import { useRokit } from "./toolchain/use-rokit";
 import DataModelPanel from "./data-model/data-model-panel";
@@ -47,6 +49,7 @@ function EditorBody({ path }: Props) {
     const palette = useCommandPalette();
     const [settingsOpen, setSettingsOpen] = useState(false);
     const sync = useSyncServer(path);
+    const runtime = useRuntimeBridge();
     const toolchain = useRokit(path);
     const terminal = useTerminalPanel();
 
@@ -181,6 +184,7 @@ function EditorBody({ path }: Props) {
                                 backend={sync.backend}
                                 onBackendChange={sync.setBackend}
                                 status={sync.status}
+                                phase={sync.phase}
                                 logs={sync.logs}
                                 port={sync.port}
                                 onPortChange={sync.setPort}
@@ -214,6 +218,13 @@ function EditorBody({ path }: Props) {
                             />
                         ) : currentView === "events" ? (
                             <EventsPanel root={path} onOpenFile={openFile} />
+                        ) : currentView === "runtime" ? (
+                            <RuntimePanel
+                                messages={runtime.messages}
+                                running={runtime.running}
+                                port={runtime.port}
+                                onClear={runtime.clear}
+                            />
                         ) : (
                             <Sidebar
                                 currentView={currentView}
@@ -272,6 +283,7 @@ function EditorBody({ path }: Props) {
             <StatusBar
                 status={sync.status}
                 backend={sync.backend}
+                phase={sync.phase}
                 port={sync.port}
                 cursor={cursor}
                 onClick={() => toggleView("sync")}
