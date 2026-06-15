@@ -1,11 +1,12 @@
 import { VscPlay, VscDebugStop } from "react-icons/vsc";
 import styles from "./sync.module.scss";
-import { SyncStatus, SyncBackend } from "./use-sync-server";
+import { SyncStatus, SyncBackend, ConnectionPhase } from "./use-sync-server";
 
 type Props = {
     backend: SyncBackend;
     onBackendChange: (backend: SyncBackend) => void;
     status: SyncStatus;
+    phase: ConnectionPhase;
     logs: string[];
     port: number;
     onPortChange: (port: number) => void;
@@ -19,10 +20,22 @@ const STATUS_LABEL: Record<SyncStatus, string> = {
     error: "Error",
 };
 
+function chip(phase: ConnectionPhase): { label: string; tone: string } {
+    switch (phase) {
+        case "serving":
+            return { label: "Serving", tone: "running" };
+        case "error":
+            return { label: "Connection error", tone: "error" };
+        default:
+            return { label: "Starting…", tone: "warning" };
+    }
+}
+
 export default function SyncPanel({
     backend,
     onBackendChange,
     status,
+    phase,
     logs,
     port,
     onPortChange,
@@ -30,12 +43,18 @@ export default function SyncPanel({
     onStop,
 }: Props) {
     const running = status === "running";
+    const conn = chip(phase);
 
     return (
         <div className={styles.sync}>
             <div className={styles.header}>
                 <span className={styles.title}>Sync</span>
                 <span className={styles.statusRow}>
+                    {running && (
+                        <span className={`${styles.chip} ${styles[conn.tone]}`}>
+                            {conn.label}
+                        </span>
+                    )}
                     <span className={`${styles.dot} ${styles[status]}`} />
                     {STATUS_LABEL[status]}
                 </span>

@@ -32,6 +32,16 @@
     font-size: 12px;
 }
 
+.chip {
+    padding: 1px 7px;
+    border-radius: 999px;
+    color: $text-bright;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
 .dot {
     width: 8px;
     height: 8px;
@@ -45,6 +55,10 @@
 
 .running {
     background: $success;
+}
+
+.warning {
+    background: $warning;
 }
 
 .error {

@@ -6,6 +6,7 @@ import { useProject } from "../../../lib/project";
 
 export type SyncBackend = "rojo" | "argon";
 export type SyncStatus = "stopped" | "running" | "error";
+export type ConnectionPhase = "starting" | "serving" | "error";
 
 const MAX_LOG_LINES = 500;
 
@@ -18,6 +19,11 @@ const SIDECAR: Record<SyncBackend, string> = {
     rojo: "binaries/rojo",
     argon: "binaries/argon",
 };
+
+function isServingLine(line: string): boolean {
+    const l = line.toLowerCase();
+    return l.includes("serving on") || l.includes("server listening");
+}
 
 function serveArgs(backend: SyncBackend, port: number): string[] {
     if (backend === "argon") {
@@ -56,6 +62,7 @@ export function useSyncServer(rootPath: string) {
     const project = useProject();
     const [backend, setBackendState] = useState<SyncBackend>("rojo");
     const [status, setStatus] = useState<SyncStatus>("stopped");
+    const [phase, setPhase] = useState<ConnectionPhase>("starting");
     const [logs, setLogs] = useState<string[]>([]);
     const [port, setPort] = useState(DEFAULT_PORT.rojo);
     const childRef = useRef<Child | null>(null);
@@ -68,6 +75,7 @@ export function useSyncServer(rootPath: string) {
     const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const append = (line: string) => {
+        if (isServingLine(line)) setPhase("serving");
         logBufferRef.current.push(line);
         if (flushTimerRef.current !== null) return;
         flushTimerRef.current = setTimeout(() => {
@@ -97,6 +105,7 @@ export function useSyncServer(rootPath: string) {
         logBufferRef.current = [];
         setLogs([]);
         setStatus("running");
+        setPhase("starting");
         try {
             if (backend === "argon") {
                 await applyArgonConfig(rootPath, append);
@@ -113,10 +122,12 @@ export function useSyncServer(rootPath: string) {
             command.on("error", (error) => {
                 append(String(error));
                 setStatus("error");
+                setPhase("error");
             });
             command.on("close", () => {
                 childRef.current = null;
                 setStatus("stopped");
+                setPhase("starting");
             });
             childRef.current = await command.spawn();
             // Tie the sidecar to the app's lifetime so an abrupt exit (Ctrl+C,
@@ -129,6 +140,7 @@ export function useSyncServer(rootPath: string) {
         } catch (error) {
             append(String(error));
             setStatus("error");
+            setPhase("error");
         }
     };
 
@@ -136,6 +148,7 @@ export function useSyncServer(rootPath: string) {
         await childRef.current?.kill();
         childRef.current = null;
         setStatus("stopped");
+        setPhase("starting");
     };
 
     // Switching projects keeps this hook mounted and only changes `rootPath`,
@@ -158,5 +171,5 @@ export function useSyncServer(rootPath: string) {
         };
     }, [rootPath]);
 
-    return { backend, setBackend, status, logs, port, setPort, start, stop };
+    return { backend, setBackend, status, phase, logs, port, setPort, start, stop };
 }
