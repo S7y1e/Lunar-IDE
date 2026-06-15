@@ -18,12 +18,14 @@ type Props = {
     path: string | null;
     onDirtyChange: (path: string, dirty: boolean) => void;
     onCursorChange: (pos: CursorPosition | null) => void;
+    onReady?: (editor: monaco.editor.IStandaloneCodeEditor) => void;
 };
 
 export default function EditorPane({
     path,
     onDirtyChange,
     onCursorChange,
+    onReady,
 }: Props) {
     const {
         content,
@@ -61,6 +63,7 @@ export default function EditorPane({
     }, [path]);
 
     function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
+        onReady?.(editor);
         readSettings().then((values) => {
             autocompleteEndEnabled.current =
                 values["luau-lsp.completion.autocompleteEnd"] === true;

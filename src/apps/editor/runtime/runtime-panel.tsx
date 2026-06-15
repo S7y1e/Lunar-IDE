@@ -1,15 +1,25 @@
 import { VscClearAll } from "react-icons/vsc";
 import styles from "./runtime.module.scss";
 import { RuntimeMessage } from "./use-runtime-bridge";
+import RuntimeLine from "./runtime-line";
 
 type Props = {
     messages: RuntimeMessage[];
     running: boolean;
     port: number;
     onClear: () => void;
+    resolve: (dotPath: string) => string | null;
+    onOpen: (dotPath: string, line: number) => void;
 };
 
-export default function RuntimePanel({ messages, running, port, onClear }: Props) {
+export default function RuntimePanel({
+    messages,
+    running,
+    port,
+    onClear,
+    resolve,
+    onOpen,
+}: Props) {
     return (
         <div className={styles.runtime}>
             <div className={styles.header}>
@@ -42,7 +52,11 @@ export default function RuntimePanel({ messages, running, port, onClear }: Props
                             key={i}
                             className={`${styles.logLine} ${styles[message.type]}`}
                         >
-                            {message.text}
+                            <RuntimeLine
+                                text={message.text}
+                                resolve={resolve}
+                                onOpen={onOpen}
+                            />
                         </div>
                     ))
                 )}

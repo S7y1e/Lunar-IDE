@@ -79,6 +79,17 @@
     word-break: break-word;
 }
 
+.link {
+    color: $focus;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+
+    &:hover {
+        filter: brightness(1.2);
+    }
+}
+
 .info {
     color: $muted;
 }

@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { join } from "@tauri-apps/api/path";
 import * as monaco from "monaco-editor";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { Group, Panel, Separator } from "react-resizable-panels";
@@ -20,6 +21,8 @@ import SyncPanel from "./sync/sync-panel";
 import { useSyncServer } from "./sync/use-sync-server";
 import RuntimePanel from "./runtime/runtime-panel";
 import { useRuntimeBridge } from "./runtime/use-runtime-bridge";
+import { makeResolver } from "./runtime/resolve-instance";
+import { useDataModel } from "./data-model/use-data-model";
 import ToolchainPanel from "./toolchain/toolchain-panel";
 import { useRokit } from "./toolchain/use-rokit";
 import DataModelPanel from "./data-model/data-model-panel";
@@ -63,6 +66,36 @@ function EditorBody({ path }: Props) {
         closeFile,
         reorderFiles,
     } = useOpenFiles();
+
+    // Remap a Studio stack location (instance path + line) to the owned source
+    // file, open it, and jump to the line. The editor instance is captured on
+    // mount so we can reveal the line once Monaco has swapped to the new model.
+    const { tree } = useDataModel(path);
+    const resolve = useMemo(() => makeResolver(tree), [tree]);
+    const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+
+    const openLocation = useCallback(
+        async (dotPath: string, line: number) => {
+            const source = resolve(dotPath);
+            if (!source) return;
+            const abs = await join(path, ...source.split("/"));
+            openFile(abs);
+
+            const uri = pathToUri(abs);
+            const reveal = (attempt: number) => {
+                const editor = editorRef.current;
+                if (editor?.getModel()?.uri.toString() === uri) {
+                    editor.revealLineInCenter(line);
+                    editor.setPosition({ lineNumber: line, column: 1 });
+                    editor.focus();
+                } else if (attempt < 60) {
+                    requestAnimationFrame(() => reveal(attempt + 1));
+                }
+            };
+            reveal(0);
+        },
+        [resolve, path, openFile],
+    );
 
     // Track which files have unsaved changes
     const [dirtyFiles, setDirtyFiles] = useState<Set<string>>(new Set());
@@ -224,6 +257,8 @@ function EditorBody({ path }: Props) {
                                 running={runtime.running}
                                 port={runtime.port}
                                 onClear={runtime.clear}
+                                resolve={resolve}
+                                onOpen={openLocation}
                             />
                         ) : (
                             <Sidebar
@@ -255,6 +290,9 @@ function EditorBody({ path }: Props) {
                                         path={activeFile}
                                         onDirtyChange={handleDirtyChange}
                                         onCursorChange={setCursor}
+                                        onReady={(editor) =>
+                                            (editorRef.current = editor)
+                                        }
                                     />
                                 </div>
                             </Panel>
