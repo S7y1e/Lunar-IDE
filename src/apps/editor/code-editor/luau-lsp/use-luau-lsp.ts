@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { resolveResource } from "@tauri-apps/api/path";
 import { LuauLspClient } from "./client";
 import { registerLuauLsp } from "./monaco-bridge";
+import { setCurrentLspClient } from "./lsp-registry";
 import { buildConfigRoot } from "./config";
 import { pathToUri } from "./uri";
 import { readSettings, subscribeSettings, SettingsValues } from "../../../../lib/settings";
@@ -57,6 +58,7 @@ export function useLuauLsp(rootPath: string) {
                 definitions
             );
             dispose = registerLuauLsp(client);
+            setCurrentLspClient(client);
             try {
                 await client.start();
             } catch (e) {
@@ -68,6 +70,7 @@ export function useLuauLsp(rootPath: string) {
             stopped = true;
             unsubscribe();
             dispose();
+            setCurrentLspClient(null);
             client?.stop().catch(() => {});
         };
     }, [rootPath]);

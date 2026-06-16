@@ -9,6 +9,7 @@ import {
     VscPulse,
     VscSearch,
     VscTypeHierarchy,
+    VscCallIncoming,
 } from "react-icons/vsc";
 
 export type ActivityViewId =
@@ -17,6 +18,7 @@ export type ActivityViewId =
     | "datamodel"
     | "deps"
     | "hierarchy"
+    | "callhierarchy"
     | "events"
     | "sync"
     | "runtime"
@@ -53,6 +55,11 @@ export const ACTIVITY_VIEWS: ActivityView[] = [
         id: "hierarchy",
         label: "Hierarchy",
         icon: VscTypeHierarchy,
+    },
+    {
+        id: "callhierarchy",
+        label: "Call Hierarchy",
+        icon: VscCallIncoming,
     },
     {
         id: "events",

@@ -36,6 +36,7 @@ import { useBuild } from "./build/use-build";
 import { useTest } from "./build/use-test";
 import FindPanel from "./find/find-panel";
 import HierarchyPanel from "./hierarchy/hierarchy-panel";
+import CallHierarchyPanel, { type CallTarget } from "./callhierarchy/call-hierarchy-panel";
 import RenameDialog from "./refactor/rename-dialog";
 import { makeResolver } from "./runtime/resolve-instance";
 import { extractDiagnostics } from "./runtime/diagnostics";
@@ -70,6 +71,7 @@ function EditorBody({ path }: Props) {
     const palette = useCommandPalette();
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [renaming, setRenaming] = useState(false);
+    const [callTarget, setCallTarget] = useState<CallTarget | null>(null);
     const sync = useSyncServer(path);
     const runtime = useRuntimeBridge();
     const toolchain = useRokit(path);
@@ -143,6 +145,34 @@ function EditorBody({ path }: Props) {
         },
         [path, openFile, revealLine],
     );
+
+    // Open a file:// uri (from the LSP) at a 1-based line/column.
+    const openUriAt = useCallback(
+        (uri: string, line: number, column: number) => {
+            const file = uriToPath(uri);
+            openFile(file);
+            revealLine(pathToUri(file), line, column);
+        },
+        [openFile, revealLine],
+    );
+
+    // Open Call Hierarchy for the function at the editor cursor.
+    const showCallHierarchy = useCallback(() => {
+        const editor = editorRef.current;
+        const model = editor?.getModel();
+        const pos = editor?.getPosition();
+        if (!model || !pos) {
+            toasts.push("error", "Put the cursor on a function first");
+            return;
+        }
+        const word = model.getWordAtPosition(pos)?.word ?? "symbol";
+        setCallTarget({
+            uri: model.uri.toString(),
+            position: { line: pos.lineNumber - 1, character: pos.column - 1 },
+            label: word,
+        });
+        showView("callhierarchy");
+    }, [showView, toasts]);
 
     // Cross-file navigation for LSP go-to-definition / find-references: the
     // standalone Monaco can't open another file, so route its open requests
@@ -224,13 +254,14 @@ function EditorBody({ path }: Props) {
             { id: "view.datamodel", title: "Go to: DataModel", run: () => showView("datamodel") },
             { id: "view.deps", title: "Go to: Dependencies", run: () => showView("deps") },
             { id: "view.hierarchy", title: "Go to: Hierarchy", run: () => showView("hierarchy") },
+            { id: "callhierarchy.show", title: "Call Hierarchy", run: showCallHierarchy },
             { id: "view.events", title: "Go to: Events", run: () => showView("events") },
             { id: "view.sync", title: "Go to: Sync", run: () => showView("sync") },
             { id: "view.runtime", title: "Go to: Runtime", run: () => showView("runtime") },
             { id: "view.toolchain", title: "Go to: Toolchain", run: () => showView("toolchain") },
             { id: "settings.open", title: "Settings: Open", run: () => setSettingsOpen(true) },
         ],
-        [sync.backend, sync.port, sync.status, sync.start, sync.stop, build, test, project?.testCommand, runtime.clear, terminal.toggle, showView, activeFile, toasts],
+        [sync.backend, sync.port, sync.status, sync.start, sync.stop, build, test, project?.testCommand, runtime.clear, terminal.toggle, showView, activeFile, toasts, showCallHierarchy],
     );
 
     // Global keybindings: match a chord against the configured/default binding
@@ -445,6 +476,11 @@ function EditorBody({ path }: Props) {
                                 root={path}
                                 activeFile={activeFile}
                                 onOpenFile={openFile}
+                            />
+                        ) : currentView === "callhierarchy" ? (
+                            <CallHierarchyPanel
+                                target={callTarget}
+                                onOpen={openUriAt}
                             />
                         ) : currentView === "events" ? (
                             <EventsPanel root={path} onOpenFile={openFile} />
