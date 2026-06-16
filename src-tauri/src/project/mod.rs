@@ -21,6 +21,13 @@ pub struct Manifest {
     pub sync: SyncManifest,
     #[serde(default)]
     pub sourcemap: SourcemapManifest,
+    #[serde(default)]
+    pub test: TestManifest,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct TestManifest {
+    pub command: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -79,6 +86,7 @@ impl ProjectModel {
             name: self.name.clone(),
             project_file: self.project_file.clone(),
             sync_backend: self.sync_backend(),
+            test_command: self.manifest.test.command.clone(),
         }
     }
 
@@ -99,6 +107,7 @@ pub struct ProjectSnapshot {
     pub name: String,
     pub project_file: String,
     pub sync_backend: Option<String>,
+    pub test_command: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -144,6 +153,64 @@ pub fn project_data_model(store: State<'_, ProjectStore>) -> Option<DataModelNod
     let root = store.0.lock().unwrap().as_ref().map(|model| model.root.clone())?;
     let text = std::fs::read_to_string(root.join(SOURCEMAP_FILE)).ok()?;
     serde_json::from_str(&text).ok()
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TestRun {
+    pub code: i32,
+    pub output: String,
+}
+
+#[tauri::command]
+pub fn project_run_test(store: State<'_, ProjectStore>) -> Result<TestRun, String> {
+    let (root, command) = {
+        let guard = store.0.lock().unwrap();
+        let model = guard.as_ref().ok_or("No project open")?;
+        let command = model
+            .manifest
+            .test
+            .command
+            .clone()
+            .ok_or("No [test] command configured in lunar.toml")?;
+        (model.root.clone(), command)
+    };
+    run_shell(&root, &command)
+}
+
+// Runs the manifest's declared test command through the platform shell so the
+// user can write a normal command line (args, pipes) in lunar.toml.
+fn run_shell(root: &Path, command: &str) -> Result<TestRun, String> {
+    use std::process::Command as Proc;
+
+    #[cfg(windows)]
+    let output = {
+        use std::os::windows::process::CommandExt;
+        Proc::new("cmd")
+            .args(["/C", command])
+            .current_dir(root)
+            .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
+            .output()
+    };
+    #[cfg(not(windows))]
+    let output = Proc::new("sh")
+        .args(["-c", command])
+        .current_dir(root)
+        .output();
+
+    let output = output.map_err(|e| e.to_string())?;
+    let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if !stderr.is_empty() {
+        if !text.is_empty() {
+            text.push('\n');
+        }
+        text.push_str(&stderr);
+    }
+    Ok(TestRun {
+        code: output.status.code().unwrap_or(-1),
+        output: text,
+    })
 }
 
 fn folder_name(root: &Path) -> String {

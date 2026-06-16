@@ -25,6 +25,7 @@ import { useRuntimeBridge } from "./runtime/use-runtime-bridge";
 import Toasts from "./notifications/toasts";
 import { useToasts } from "./notifications/use-toasts";
 import { useBuild } from "./build/use-build";
+import { useTest } from "./build/use-test";
 import { makeResolver } from "./runtime/resolve-instance";
 import { extractDiagnostics } from "./runtime/diagnostics";
 import { useRuntimeMarkers } from "./runtime/use-runtime-markers";
@@ -38,7 +39,7 @@ import TerminalView from "./terminal/terminal-view";
 import { useTerminalPanel } from "./terminal/use-terminal-panel";
 import SettingsView from "./settings/settings-view";
 import StatusBar from "./status-bar/status-bar";
-import { ProjectProvider } from "../../lib/project";
+import { ProjectProvider, useProject } from "../../lib/project";
 
 type Props = {
     path: string;
@@ -62,6 +63,8 @@ function EditorBody({ path }: Props) {
     const toolchain = useRokit(path);
     const toasts = useToasts();
     const { build } = useBuild(path, sync.backend, toasts);
+    const { test } = useTest(toasts);
+    const project = useProject();
     const terminal = useTerminalPanel();
 
     // Surface sourcemap generation failures — without the sourcemap, DataModel
@@ -144,6 +147,12 @@ function EditorBody({ path }: Props) {
                 hint: `${sync.backend} build`,
                 run: build,
             },
+            {
+                id: "test",
+                title: "Test: Run tests",
+                hint: project?.testCommand ?? "set [test] command in lunar.toml",
+                run: test,
+            },
             { id: "runtime.clear", title: "Runtime: Clear output", run: runtime.clear },
             { id: "terminal.toggle", title: "Terminal: Toggle", run: terminal.toggle },
             { id: "view.project", title: "Go to: Project", run: () => showView("project") },
@@ -155,7 +164,7 @@ function EditorBody({ path }: Props) {
             { id: "view.toolchain", title: "Go to: Toolchain", run: () => showView("toolchain") },
             { id: "settings.open", title: "Settings: Open", run: () => setSettingsOpen(true) },
         ],
-        [sync.backend, sync.port, sync.status, sync.start, sync.stop, build, runtime.clear, terminal.toggle, showView],
+        [sync.backend, sync.port, sync.status, sync.start, sync.stop, build, test, project?.testCommand, runtime.clear, terminal.toggle, showView],
     );
 
     // Track which files have unsaved changes

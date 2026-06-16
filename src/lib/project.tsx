@@ -13,7 +13,14 @@ export type ProjectSnapshot = {
     name: string;
     projectFile: string;
     syncBackend: string | null;
+    testCommand: string | null;
 };
+
+export type TestRun = { code: number; output: string };
+
+export function runProjectTest(): Promise<TestRun> {
+    return invoke("project_run_test");
+}
 
 export function openProject(root: string): Promise<ProjectSnapshot> {
     return invoke("project_open", { root });

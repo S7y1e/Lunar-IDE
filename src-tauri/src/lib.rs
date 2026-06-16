@@ -25,6 +25,7 @@ pub fn run() {
             project::project_close,
             project::project_snapshot,
             project::project_data_model,
+            project::project_run_test,
             project::dependencies::project_dependencies,
             project::events::project_events,
             runtime::runtime_bridge_status
