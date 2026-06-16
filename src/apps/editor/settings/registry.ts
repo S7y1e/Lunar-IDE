@@ -2,6 +2,7 @@ import { Setting } from "./setting";
 import { LUAU_SETTINGS, categoryOf, labelOf } from "./luau-lsp-config";
 import { ARGON_SETTINGS } from "./argon-config";
 import { APPEARANCE_SETTINGS } from "./appearance-config";
+import { EDITOR_SETTINGS } from "./editor-config";
 
 const luauSettings: Setting[] = LUAU_SETTINGS.map((s) => ({
     key: s.key,
@@ -18,6 +19,7 @@ const luauSettings: Setting[] = LUAU_SETTINGS.map((s) => ({
 
 export const ALL_SETTINGS: Setting[] = [
     ...APPEARANCE_SETTINGS,
+    ...EDITOR_SETTINGS,
     ...luauSettings,
     ...ARGON_SETTINGS,
 ];

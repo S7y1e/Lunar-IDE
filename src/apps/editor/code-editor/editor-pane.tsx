@@ -9,10 +9,43 @@ import { EDITOR_OPTIONS } from "./editor-options";
 import { useFileContent } from "./use-file-content";
 import { pathToUri } from "./luau-lsp/uri";
 import { registerAutocompleteEnd } from "./luau-lsp/autocomplete-end";
-import { readSettings } from "../../../lib/settings";
+import {
+    readSettings,
+    subscribeSettings,
+    SettingsValues,
+} from "../../../lib/settings";
 import { MONACO_THEME, getTheme, subscribeTheme } from "../../../lib/theme";
 
 type CursorPosition = { line: number; column: number };
+
+// User editor settings applied on top of EDITOR_OPTIONS, live.
+function applyEditorSettings(
+    editor: monaco.editor.IStandaloneCodeEditor,
+    values: SettingsValues
+) {
+    const get = <T,>(key: string, fallback: T): T =>
+        key in values ? (values[key] as T) : fallback;
+    editor.updateOptions({
+        fontSize: Number(get("lunar.editor.fontSize", 13)),
+        fontFamily: get("lunar.editor.fontFamily", "'JetBrains Mono', monospace"),
+        fontLigatures: get("lunar.editor.fontLigatures", true),
+        wordWrap: get<"on" | "off">("lunar.editor.wordWrap", "off"),
+        lineNumbers: get<monaco.editor.LineNumbersType>(
+            "lunar.editor.lineNumbers",
+            "on"
+        ),
+        minimap: { enabled: get("lunar.editor.minimap", false) },
+        stickyScroll: { enabled: get("lunar.editor.stickyScroll", false) },
+        renderWhitespace: get<"none" | "boundary" | "selection" | "trailing" | "all">(
+            "lunar.editor.renderWhitespace",
+            "selection"
+        ),
+    });
+    editor.getModel()?.updateOptions({
+        tabSize: Number(get("lunar.editor.tabSize", 4)),
+        insertSpaces: true,
+    });
+}
 
 type Props = {
     path: string | null;
@@ -40,6 +73,7 @@ export default function EditorPane({
     const [theme, setTheme] = useState(getTheme());
     useEffect(() => subscribeTheme(setTheme), []);
     const autocompleteEndEnabled = useRef(false);
+    const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
     const onDirtyRef = useRef(onDirtyChange);
     onDirtyRef.current = onDirtyChange;
     const onCursorRef = useRef(onCursorChange);
@@ -62,11 +96,22 @@ export default function EditorPane({
         if (!path) onCursorRef.current(null);
     }, [path]);
 
+    // Re-apply editor settings live when they change.
+    useEffect(
+        () =>
+            subscribeSettings((values) => {
+                if (editorRef.current) applyEditorSettings(editorRef.current, values);
+            }),
+        []
+    );
+
     function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
         onReady?.(editor);
+        editorRef.current = editor;
         readSettings().then((values) => {
             autocompleteEndEnabled.current =
                 values["luau-lsp.completion.autocompleteEnd"] === true;
+            applyEditorSettings(editor, values);
         });
 
         registerAutocompleteEnd(editor, () => autocompleteEndEnabled.current);
