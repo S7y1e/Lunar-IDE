@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { VscChevronDown, VscCaseSensitive } from "react-icons/vsc";
+import { useMemo, useState } from "react";
+import { VscChevronDown, VscCaseSensitive, VscReplaceAll } from "react-icons/vsc";
 import { useProjectSearch } from "./use-project-search";
 import { type SearchMatch } from "../../../lib/project";
 import Highlight from "../search/highlight";
@@ -8,12 +8,32 @@ import styles from "./find.module.scss";
 const baseName = (rel: string) => rel.split("/").pop() ?? rel;
 
 type Props = {
+    root: string;
     onOpenAt: (file: string, line: number, column: number) => void;
 };
 
-export default function FindPanel({ onOpenAt }: Props) {
-    const { query, setQuery, caseSensitive, setCaseSensitive, results, loading } =
-        useProjectSearch();
+export default function FindPanel({ root, onOpenAt }: Props) {
+    const {
+        query,
+        setQuery,
+        caseSensitive,
+        setCaseSensitive,
+        results,
+        loading,
+        replaceAll,
+    } = useProjectSearch(root);
+    const [replace, setReplace] = useState("");
+    const [replacing, setReplacing] = useState(false);
+
+    const runReplace = async () => {
+        if (replacing) return;
+        setReplacing(true);
+        try {
+            await replaceAll(replace);
+        } finally {
+            setReplacing(false);
+        }
+    };
 
     const groups = useMemo(() => {
         const map = new Map<string, SearchMatch[]>();
@@ -52,6 +72,25 @@ export default function FindPanel({ onOpenAt }: Props) {
                     aria-pressed={caseSensitive}
                 >
                     <VscCaseSensitive size={16} />
+                </button>
+            </div>
+
+            <div className={styles.searchRow}>
+                <input
+                    className={styles.input}
+                    value={replace}
+                    spellCheck={false}
+                    placeholder="Replace with"
+                    onChange={(e) => setReplace(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && runReplace()}
+                />
+                <button
+                    className={styles.toggle}
+                    onClick={runReplace}
+                    disabled={replacing || !results || results.matches.length === 0}
+                    title="Replace all"
+                >
+                    <VscReplaceAll size={16} />
                 </button>
             </div>
 
