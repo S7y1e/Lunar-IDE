@@ -18,6 +18,8 @@ import {
     subscribeSettings,
     type SettingsValues,
 } from "../../lib/settings";
+import { checkForUpdate } from "../../lib/update-check";
+import { open as openExternal } from "@tauri-apps/plugin-shell";
 import EditorTabs from "./code-editor/editor-tabs";
 import EditorPane from "./code-editor/editor-pane";
 import { useOpenFiles } from "./code-editor/use-open-files";
@@ -260,6 +262,26 @@ function EditorBody({ path }: Props) {
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
+    }, []);
+
+    // On startup, offer to download a newer Lunar release (unless disabled).
+    useEffect(() => {
+        readSettings().then((values) => {
+            if (values["lunar.checkForUpdates"] === false) return;
+            checkForUpdate().then((info) => {
+                if (!info) return;
+                toasts.push(
+                    "info",
+                    `Lunar v${info.version} is available`,
+                    "A newer version was published on GitHub.",
+                    undefined,
+                    {
+                        label: "Download",
+                        run: () => openExternal(info.url).catch(() => {}),
+                    },
+                );
+            });
+        });
     }, []);
 
     // Track which files have unsaved changes

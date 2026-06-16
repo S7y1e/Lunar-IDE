@@ -91,4 +91,13 @@ export const EDITOR_SETTINGS: Setting[] = [
         enum: ["none", "boundary", "selection", "all"],
         description: "When to draw whitespace characters (spaces/tabs).",
     },
+    {
+        key: "lunar.checkForUpdates",
+        tool: "Editor",
+        category: "Updates",
+        label: "Check for updates",
+        type: "boolean",
+        default: true,
+        description: "On startup, check GitHub for a newer Lunar release and offer to download it.",
+    },
 ];

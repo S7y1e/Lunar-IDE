@@ -18,6 +18,17 @@ export default function Toasts({ toasts, onDismiss }: Props) {
                         {toast.detail && (
                             <div className={styles.detail}>{toast.detail}</div>
                         )}
+                        {toast.action && (
+                            <button
+                                className={styles.action}
+                                onClick={() => {
+                                    toast.action!.run();
+                                    onDismiss(toast.id);
+                                }}
+                            >
+                                {toast.action.label}
+                            </button>
+                        )}
                     </div>
                     <button
                         className={styles.close}

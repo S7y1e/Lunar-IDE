@@ -1,11 +1,13 @@
 import { useRef, useState } from "react";
 
 export type ToastKind = "info" | "success" | "error";
+export type ToastAction = { label: string; run: () => void };
 export type Toast = {
     id: number;
     kind: ToastKind;
     message: string;
     detail?: string;
+    action?: ToastAction;
 };
 
 export function useToasts() {
@@ -20,10 +22,11 @@ export function useToasts() {
         kind: ToastKind,
         message: string,
         detail?: string,
-        autoMs?: number
+        autoMs?: number,
+        action?: ToastAction
     ) => {
         setToasts((list) => {
-            const next = { id, kind, message, detail };
+            const next = { id, kind, message, detail, action };
             return list.some((t) => t.id === id)
                 ? list.map((t) => (t.id === id ? next : t))
                 : [...list, next];
@@ -36,10 +39,11 @@ export function useToasts() {
         kind: ToastKind,
         message: string,
         detail?: string,
-        autoMs?: number
+        autoMs?: number,
+        action?: ToastAction
     ) => {
         const id = ++idRef.current;
-        set(id, kind, message, detail, autoMs);
+        set(id, kind, message, detail, autoMs, action);
         return id;
     };
 
