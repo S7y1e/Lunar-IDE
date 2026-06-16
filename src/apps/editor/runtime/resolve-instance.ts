@@ -7,6 +7,7 @@ import { scriptPath } from "../data-model/instance-path";
 //   Players.<name>.PlayerScripts.* -> StarterPlayer.StarterPlayerScripts.*
 //   Players.<name>.PlayerGui.*     -> StarterGui.*
 //   Players.<name>.Backpack.*      -> StarterPack.*
+//   Players.<name>.Character.*     -> StarterPlayer.StarterCharacterScripts.*
 function mapRuntimeContainers(segments: string[]): string[] {
     if (segments[0] === "Players" && segments.length >= 3) {
         const rest = segments.slice(3);
@@ -17,6 +18,8 @@ function mapRuntimeContainers(segments: string[]): string[] {
                 return ["StarterGui", ...rest];
             case "Backpack":
                 return ["StarterPack", ...rest];
+            case "Character":
+                return ["StarterPlayer", "StarterCharacterScripts", ...rest];
         }
     }
     return segments;
