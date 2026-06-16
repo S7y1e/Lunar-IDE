@@ -64,7 +64,17 @@ function EditorBody({ path }: Props) {
     const { build } = useBuild(path, sync.backend, toasts);
     const terminal = useTerminalPanel();
 
-    useSourcemap(path);
+    // Surface sourcemap generation failures — without the sourcemap, DataModel
+    // and runtime remap silently break.
+    const sourcemapToast = useRef<number | null>(null);
+    useSourcemap(path, (detail) => {
+        if (sourcemapToast.current !== null) toasts.dismiss(sourcemapToast.current);
+        sourcemapToast.current = toasts.push(
+            "error",
+            "Sourcemap generation failed",
+            detail,
+        );
+    });
     useLuauLsp(path);
     const {
         openFiles,

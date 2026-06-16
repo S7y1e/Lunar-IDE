@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Command, Child } from "@tauri-apps/plugin-shell";
 import { invoke } from "@tauri-apps/api/core";
 import { exists } from "@tauri-apps/plugin-fs";
@@ -21,10 +21,20 @@ function generator(backend: string, projectFile: string, sourcemapFile: string, 
     return { sidecar: "binaries/rojo", args };
 }
 
-export function useSourcemap(rootPath: string) {
+export function useSourcemap(
+    rootPath: string,
+    onError?: (detail: string) => void
+) {
+    const onErrorRef = useRef(onError);
+    onErrorRef.current = onError;
+
     useEffect(() => {
         let child: Child | null = null;
         let stopped = false;
+        // The sourcemap is the spine of DataModel + runtime remap. When rojo/argon
+        // fails to generate it, everything downstream silently breaks — so surface
+        // the error. Dedupe since --watch reprints it on every file change.
+        let reported = "";
 
         (async () => {
             const [values, snapshot] = await Promise.all([
@@ -58,9 +68,19 @@ export function useSourcemap(rootPath: string) {
             );
 
             const command = Command.sidecar(sidecar, args, { cwd: rootPath });
-            command.stderr.on("data", (line) =>
-                console.warn("[sourcemap]", line),
-            );
+            command.stderr.on("data", (line) => {
+                console.warn("[sourcemap]", line);
+                const text = String(line);
+                if (!/\[ERROR|ERROR:/.test(text)) return;
+                const detail = text
+                    .replace(/^\s*\[ERROR[^\]]*\]\s*/, "")
+                    .replace(/^\s*ERROR:\s*/, "")
+                    .trim();
+                if (detail && detail !== reported) {
+                    reported = detail;
+                    onErrorRef.current?.(detail);
+                }
+            });
             command.on("error", (error) =>
                 console.error("[sourcemap]", error),
             );
