@@ -9,6 +9,7 @@ export const BINDABLE: Bindable[] = [
     { id: "test", label: "Test: Run tests", defaultKey: "Ctrl+Shift+T" },
     { id: "terminal.toggle", label: "Terminal: Toggle", defaultKey: "Ctrl+`" },
     { id: "search.find", label: "Search: Find in Files", defaultKey: "Ctrl+Shift+F" },
+    { id: "refactor.renameModule", label: "Refactor: Rename module", defaultKey: "Shift+F6" },
     { id: "sync.start", label: "Sync: Start server", defaultKey: "" },
     { id: "sync.stop", label: "Sync: Stop server", defaultKey: "" },
     { id: "runtime.clear", label: "Runtime: Clear output", defaultKey: "" },

@@ -33,6 +33,7 @@ import { useToasts } from "./notifications/use-toasts";
 import { useBuild } from "./build/use-build";
 import { useTest } from "./build/use-test";
 import FindPanel from "./find/find-panel";
+import RenameDialog from "./refactor/rename-dialog";
 import { makeResolver } from "./runtime/resolve-instance";
 import { extractDiagnostics } from "./runtime/diagnostics";
 import { useRuntimeMarkers } from "./runtime/use-runtime-markers";
@@ -65,6 +66,7 @@ function EditorBody({ path }: Props) {
     const sidebarRef = useSidebarPanel(currentView);
     const palette = useCommandPalette();
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [renaming, setRenaming] = useState(false);
     const sync = useSyncServer(path);
     const runtime = useRuntimeBridge();
     const toolchain = useRokit(path);
@@ -205,6 +207,15 @@ function EditorBody({ path }: Props) {
                 title: "Search: Find in Files",
                 run: () => showView("search"),
             },
+            {
+                id: "refactor.renameModule",
+                title: "Refactor: Rename module…",
+                hint: activeFile ? undefined : "open a module first",
+                run: () =>
+                    activeFile
+                        ? setRenaming(true)
+                        : toasts.push("error", "Open a module file to rename it"),
+            },
             { id: "terminal.toggle", title: "Terminal: Toggle", run: terminal.toggle },
             { id: "view.project", title: "Go to: Project", run: () => showView("project") },
             { id: "view.datamodel", title: "Go to: DataModel", run: () => showView("datamodel") },
@@ -215,7 +226,7 @@ function EditorBody({ path }: Props) {
             { id: "view.toolchain", title: "Go to: Toolchain", run: () => showView("toolchain") },
             { id: "settings.open", title: "Settings: Open", run: () => setSettingsOpen(true) },
         ],
-        [sync.backend, sync.port, sync.status, sync.start, sync.stop, build, test, project?.testCommand, runtime.clear, terminal.toggle, showView],
+        [sync.backend, sync.port, sync.status, sync.start, sync.stop, build, test, project?.testCommand, runtime.clear, terminal.toggle, showView, activeFile, toasts],
     );
 
     // Global keybindings: match a chord against the configured/default binding
@@ -496,6 +507,26 @@ function EditorBody({ path }: Props) {
 
             {settingsOpen && (
                 <SettingsView onClose={() => setSettingsOpen(false)} />
+            )}
+
+            {renaming && activeFile && (
+                <RenameDialog
+                    root={path}
+                    activeFile={activeFile}
+                    onClose={() => setRenaming(false)}
+                    onDone={(newAbs) => {
+                        setRenaming(false);
+                        const old = activeFile;
+                        openFile(newAbs);
+                        if (old) closeFile(old);
+                        toasts.push(
+                            "success",
+                            `Renamed to ${newAbs.split(/[\\/]/).pop()}`,
+                            undefined,
+                            5000,
+                        );
+                    }}
+                />
             )}
 
             <Toasts toasts={toasts.toasts} onDismiss={toasts.dismiss} />
