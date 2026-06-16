@@ -2,6 +2,7 @@ import styles from "./settings.module.scss";
 import { Setting } from "./setting";
 import StringListField from "./string-list-field";
 import RecordField from "./record-field";
+import KeybindField from "./keybind-field";
 
 type Props = {
     setting: Setting;
@@ -46,6 +47,10 @@ function Control({
 }) {
     if (setting.type === "boolean") {
         return <Toggle checked={value as boolean} onChange={onChange} />;
+    }
+
+    if (setting.type === "keybind") {
+        return <KeybindField value={value as string} onChange={onChange} />;
     }
 
     if (setting.type === "string" && setting.enum) {

@@ -205,6 +205,49 @@
     min-width: 120px;
 }
 
+.keybind {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.keybindCapture {
+    min-width: 180px;
+    padding: 6px 9px;
+    text-align: left;
+    background: $bar;
+    border: 1px solid $divider;
+    border-radius: 6px;
+    color: $text;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    cursor: pointer;
+
+    &:hover {
+        border-color: $focus;
+    }
+}
+
+.keybindCapturing {
+    border-color: $focus;
+    color: $muted;
+}
+
+.keybindClear {
+    display: flex;
+    padding: 4px;
+    border: none;
+    background: transparent;
+    color: $muted;
+    cursor: pointer;
+    border-radius: 4px;
+
+    &:hover {
+        background: $hover;
+        color: $text;
+    }
+}
+
 .toggle {
     position: relative;
     width: 36px;

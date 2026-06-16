@@ -12,6 +12,12 @@ import { useSidebarPanel } from "./file-tree/use-sidebar-panel";
 import SearchPalette from "./search/search-palette";
 import { useCommandPalette } from "./search/use-command-palette";
 import { type Command } from "./search/commands";
+import { BINDABLE, keybindKey, chordFromEvent } from "./settings/keybinds";
+import {
+    readSettings,
+    subscribeSettings,
+    type SettingsValues,
+} from "../../lib/settings";
 import EditorTabs from "./code-editor/editor-tabs";
 import EditorPane from "./code-editor/editor-pane";
 import { useOpenFiles } from "./code-editor/use-open-files";
@@ -195,6 +201,39 @@ function EditorBody({ path }: Props) {
         ],
         [sync.backend, sync.port, sync.status, sync.start, sync.stop, build, test, project?.testCommand, runtime.clear, terminal.toggle, showView],
     );
+
+    // Global keybindings: match a chord against the configured/default binding
+    // and run the matching command. Refs keep the listener stable across renders.
+    const settingsRef = useRef<SettingsValues>({});
+    useEffect(() => {
+        readSettings().then((v) => (settingsRef.current = v));
+        return subscribeSettings((v) => (settingsRef.current = v));
+    }, []);
+    const commandsRef = useRef(commands);
+    commandsRef.current = commands;
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            const chord = chordFromEvent(e);
+            if (!chord) return;
+            for (const bindable of BINDABLE) {
+                const bound =
+                    (settingsRef.current[keybindKey(bindable.id)] as string) ||
+                    bindable.defaultKey;
+                if (bound && bound === chord) {
+                    const command = commandsRef.current.find(
+                        (c) => c.id === bindable.id,
+                    );
+                    if (command && command.enabled !== false) {
+                        e.preventDefault();
+                        command.run();
+                    }
+                    return;
+                }
+            }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, []);
 
     // Track which files have unsaved changes
     const [dirtyFiles, setDirtyFiles] = useState<Set<string>>(new Set());

@@ -3,7 +3,8 @@ export type SettingType =
     | "string"
     | "number"
     | "string[]"
-    | "record";
+    | "record"
+    | "keybind";
 
 export type Setting = {
     key: string;
