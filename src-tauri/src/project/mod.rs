@@ -173,17 +173,20 @@ pub struct TestRun {
 
 #[tauri::command]
 pub fn project_run_test(store: State<'_, ProjectStore>) -> Result<TestRun, String> {
-    let (root, command) = {
+    let root = {
         let guard = store.0.lock().unwrap();
-        let model = guard.as_ref().ok_or("No project open")?;
-        let command = model
-            .manifest
-            .test
-            .command
-            .clone()
-            .ok_or("No [test] command configured in lunar.toml")?;
-        (model.root.clone(), command)
+        guard.as_ref().ok_or("No project open")?.root.clone()
     };
+    // Re-read the manifest from disk so editing lunar.toml's [test] command takes
+    // effect immediately, without having to reopen the project.
+    let manifest = std::fs::read_to_string(root.join(MANIFEST_FILE))
+        .ok()
+        .and_then(|text| toml::from_str::<Manifest>(&text).ok())
+        .unwrap_or_default();
+    let command = manifest
+        .test
+        .command
+        .ok_or("No [test] command configured in lunar.toml")?;
     run_shell(&root, &command)
 }
 
