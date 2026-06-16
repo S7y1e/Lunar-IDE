@@ -32,6 +32,7 @@ import Toasts from "./notifications/toasts";
 import { useToasts } from "./notifications/use-toasts";
 import { useBuild } from "./build/use-build";
 import { useTest } from "./build/use-test";
+import FindPanel from "./find/find-panel";
 import { makeResolver } from "./runtime/resolve-instance";
 import { extractDiagnostics } from "./runtime/diagnostics";
 import { useRuntimeMarkers } from "./runtime/use-runtime-markers";
@@ -128,6 +129,16 @@ function EditorBody({ path }: Props) {
         [resolve, path, openFile, revealLine],
     );
 
+    // Open a project-search hit (relative path + line/column) and jump to it.
+    const openFileAt = useCallback(
+        async (relFile: string, line: number, column: number) => {
+            const abs = await join(path, ...relFile.split("/"));
+            openFile(abs);
+            revealLine(pathToUri(abs), line, column);
+        },
+        [path, openFile, revealLine],
+    );
+
     // Cross-file navigation for LSP go-to-definition / find-references: the
     // standalone Monaco can't open another file, so route its open requests
     // through Lunar's own openFile + reveal.
@@ -189,6 +200,11 @@ function EditorBody({ path }: Props) {
                 run: test,
             },
             { id: "runtime.clear", title: "Runtime: Clear output", run: runtime.clear },
+            {
+                id: "search.find",
+                title: "Search: Find in Files",
+                run: () => showView("search"),
+            },
             { id: "terminal.toggle", title: "Terminal: Toggle", run: terminal.toggle },
             { id: "view.project", title: "Go to: Project", run: () => showView("project") },
             { id: "view.datamodel", title: "Go to: DataModel", run: () => showView("datamodel") },
@@ -350,7 +366,9 @@ function EditorBody({ path }: Props) {
                         defaultSize="260px"
                         minSize="180px"
                     >
-                        {currentView === "sync" ? (
+                        {currentView === "search" ? (
+                            <FindPanel onOpenAt={openFileAt} />
+                        ) : currentView === "sync" ? (
                             <SyncPanel
                                 backend={sync.backend}
                                 onBackendChange={sync.setBackend}

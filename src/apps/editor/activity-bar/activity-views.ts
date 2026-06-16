@@ -7,10 +7,12 @@ import {
     VscReferences,
     VscRadioTower,
     VscPulse,
+    VscSearch,
 } from "react-icons/vsc";
 
 export type ActivityViewId =
     | "project"
+    | "search"
     | "datamodel"
     | "deps"
     | "events"
@@ -29,6 +31,11 @@ export const ACTIVITY_VIEWS: ActivityView[] = [
         id: "project",
         label: "Project",
         icon: FaRegFolder,
+    },
+    {
+        id: "search",
+        label: "Search",
+        icon: VscSearch,
     },
     {
         id: "datamodel",

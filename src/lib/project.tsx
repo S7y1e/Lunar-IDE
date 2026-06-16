@@ -23,6 +23,21 @@ export function runProjectTest(): Promise<TestRun> {
     return invoke("project_run_test");
 }
 
+export type SearchMatch = {
+    file: string;
+    line: number;
+    column: number;
+    text: string;
+};
+export type SearchResults = { matches: SearchMatch[]; truncated: boolean };
+
+export function searchProject(
+    query: string,
+    caseSensitive: boolean
+): Promise<SearchResults | null> {
+    return invoke("project_search", { query, caseSensitive });
+}
+
 export function openProject(root: string): Promise<ProjectSnapshot> {
     return invoke("project_open", { root });
 }
