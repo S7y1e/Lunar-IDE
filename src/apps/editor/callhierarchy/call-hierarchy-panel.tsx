@@ -1,13 +1,13 @@
 import { VscChevronDown } from "react-icons/vsc";
 import CallHierarchyNode from "./call-hierarchy-node";
-import type { LspPosition } from "../code-editor/luau-lsp/convert";
+import type { CallTarget } from "./call-hierarchy";
 import styles from "./call-hierarchy.module.scss";
 
-export type CallTarget = { uri: string; position: LspPosition; label: string };
+export type { CallTarget };
 
 type Props = {
     target: CallTarget | null;
-    onOpen: (uri: string, line: number, column: number) => void;
+    onOpen: (file: string, line: number, column: number) => void;
 };
 
 export default function CallHierarchyPanel({ target, onOpen }: Props) {
@@ -26,10 +26,8 @@ export default function CallHierarchyPanel({ target, onOpen }: Props) {
                     </div>
                 ) : (
                     <CallHierarchyNode
-                        key={`${target.uri}:${target.position.line}:${target.position.character}`}
-                        label={target.label}
-                        fnUri={target.uri}
-                        fnPos={target.position}
+                        key={target.name}
+                        name={target.name}
                         ancestors={new Set()}
                         depth={0}
                         onOpen={onOpen}

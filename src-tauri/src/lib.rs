@@ -29,6 +29,7 @@ pub fn run() {
             project::dependencies::project_dependencies,
             project::events::project_events,
             project::search::project_search,
+            project::callgraph::project_callers,
             runtime::runtime_bridge_status
         ])
         .setup(|app| {

@@ -146,31 +146,17 @@ function EditorBody({ path }: Props) {
         [path, openFile, revealLine],
     );
 
-    // Open a file:// uri (from the LSP) at a 1-based line/column.
-    const openUriAt = useCallback(
-        (uri: string, line: number, column: number) => {
-            const file = uriToPath(uri);
-            openFile(file);
-            revealLine(pathToUri(file), line, column);
-        },
-        [openFile, revealLine],
-    );
-
-    // Open Call Hierarchy for the function at the editor cursor.
+    // Open Call Hierarchy for the function name at the editor cursor.
     const showCallHierarchy = useCallback(() => {
         const editor = editorRef.current;
         const model = editor?.getModel();
         const pos = editor?.getPosition();
-        if (!model || !pos) {
+        const word = model && pos ? model.getWordAtPosition(pos)?.word : null;
+        if (!word) {
             toasts.push("error", "Put the cursor on a function first");
             return;
         }
-        const word = model.getWordAtPosition(pos)?.word ?? "symbol";
-        setCallTarget({
-            uri: model.uri.toString(),
-            position: { line: pos.lineNumber - 1, character: pos.column - 1 },
-            label: word,
-        });
+        setCallTarget({ name: word });
         showView("callhierarchy");
     }, [showView, toasts]);
 
@@ -480,7 +466,7 @@ function EditorBody({ path }: Props) {
                         ) : currentView === "callhierarchy" ? (
                             <CallHierarchyPanel
                                 target={callTarget}
-                                onOpen={openUriAt}
+                                onOpen={openFileAt}
                             />
                         ) : currentView === "events" ? (
                             <EventsPanel root={path} onOpenFile={openFile} />

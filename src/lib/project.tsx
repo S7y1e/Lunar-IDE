@@ -38,6 +38,17 @@ export function searchProject(
     return invoke("project_search", { query, caseSensitive });
 }
 
+export type CallerSite = {
+    caller: string;
+    file: string;
+    line: number;
+    column: number;
+};
+
+export function callersOf(name: string): Promise<CallerSite[]> {
+    return invoke("project_callers", { name });
+}
+
 export function openProject(root: string): Promise<ProjectSnapshot> {
     return invoke("project_open", { root });
 }
