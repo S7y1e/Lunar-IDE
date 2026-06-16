@@ -35,6 +35,7 @@ import { useToasts } from "./notifications/use-toasts";
 import { useBuild } from "./build/use-build";
 import { useTest } from "./build/use-test";
 import FindPanel from "./find/find-panel";
+import HierarchyPanel from "./hierarchy/hierarchy-panel";
 import RenameDialog from "./refactor/rename-dialog";
 import { makeResolver } from "./runtime/resolve-instance";
 import { extractDiagnostics } from "./runtime/diagnostics";
@@ -222,6 +223,7 @@ function EditorBody({ path }: Props) {
             { id: "view.project", title: "Go to: Project", run: () => showView("project") },
             { id: "view.datamodel", title: "Go to: DataModel", run: () => showView("datamodel") },
             { id: "view.deps", title: "Go to: Dependencies", run: () => showView("deps") },
+            { id: "view.hierarchy", title: "Go to: Hierarchy", run: () => showView("hierarchy") },
             { id: "view.events", title: "Go to: Events", run: () => showView("events") },
             { id: "view.sync", title: "Go to: Sync", run: () => showView("sync") },
             { id: "view.runtime", title: "Go to: Runtime", run: () => showView("runtime") },
@@ -400,7 +402,7 @@ function EditorBody({ path }: Props) {
                         minSize="180px"
                     >
                         {currentView === "search" ? (
-                            <FindPanel onOpenAt={openFileAt} />
+                            <FindPanel root={path} onOpenAt={openFileAt} />
                         ) : currentView === "sync" ? (
                             <SyncPanel
                                 backend={sync.backend}
@@ -434,6 +436,12 @@ function EditorBody({ path }: Props) {
                             />
                         ) : currentView === "deps" ? (
                             <DependenciesPanel
+                                root={path}
+                                activeFile={activeFile}
+                                onOpenFile={openFile}
+                            />
+                        ) : currentView === "hierarchy" ? (
+                            <HierarchyPanel
                                 root={path}
                                 activeFile={activeFile}
                                 onOpenFile={openFile}
