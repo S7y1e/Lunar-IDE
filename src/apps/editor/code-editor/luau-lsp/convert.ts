@@ -42,8 +42,122 @@ export type LspHover = {
     range?: LspRange;
 } | null;
 
+export type LspLocation = { uri: string; range: LspRange };
+// definition/references can return a single Location, a list, or null.
+export type LspLocationResult = LspLocation | LspLocation[] | null;
+
 export function toLspPosition(position: monaco.IPosition): LspPosition {
     return { line: position.lineNumber - 1, character: position.column - 1 };
+}
+
+function toRange(range: LspRange): monaco.IRange {
+    return {
+        startLineNumber: range.start.line + 1,
+        startColumn: range.start.character + 1,
+        endLineNumber: range.end.line + 1,
+        endColumn: range.end.character + 1,
+    };
+}
+
+export function toMonacoLocations(
+    result: LspLocationResult
+): monaco.languages.Location[] {
+    if (!result) return [];
+    const list = Array.isArray(result) ? result : [result];
+    return list.map((loc) => ({
+        uri: monaco.Uri.parse(loc.uri),
+        range: toRange(loc.range),
+    }));
+}
+
+export type LspDocumentSymbol = {
+    name: string;
+    detail?: string;
+    kind: number;
+    range: LspRange;
+    selectionRange: LspRange;
+    children?: LspDocumentSymbol[];
+};
+
+// LSP SymbolKind is 1-based; monaco.languages.SymbolKind is the same list 0-based.
+function toDocumentSymbol(
+    symbol: LspDocumentSymbol
+): monaco.languages.DocumentSymbol {
+    return {
+        name: symbol.name,
+        detail: symbol.detail ?? "",
+        kind: Math.max(0, (symbol.kind ?? 13) - 1),
+        tags: [],
+        range: toRange(symbol.range),
+        selectionRange: toRange(symbol.selectionRange ?? symbol.range),
+        children: symbol.children?.map(toDocumentSymbol),
+    };
+}
+
+export function toDocumentSymbols(
+    result: LspDocumentSymbol[] | null
+): monaco.languages.DocumentSymbol[] {
+    return result ? result.map(toDocumentSymbol) : [];
+}
+
+export type LspWorkspaceEdit = {
+    changes?: { [uri: string]: LspTextEdit[] };
+    documentChanges?: { textDocument: { uri: string }; edits: LspTextEdit[] }[];
+} | null;
+
+export function toWorkspaceEdit(
+    edit: LspWorkspaceEdit
+): monaco.languages.WorkspaceEdit {
+    const edits: monaco.languages.IWorkspaceTextEdit[] = [];
+    const push = (uri: string, textEdits: LspTextEdit[]) => {
+        for (const te of textEdits) {
+            edits.push({
+                resource: monaco.Uri.parse(uri),
+                textEdit: { range: toRange(te.range), text: te.newText },
+                versionId: undefined,
+            });
+        }
+    };
+    if (edit?.changes) {
+        for (const uri of Object.keys(edit.changes)) push(uri, edit.changes[uri]);
+    }
+    for (const dc of edit?.documentChanges ?? []) {
+        push(dc.textDocument.uri, dc.edits);
+    }
+    return { edits };
+}
+
+type LspParameter = { label: string | [number, number]; documentation?: LspDocumentation };
+type LspSignature = {
+    label: string;
+    documentation?: LspDocumentation;
+    parameters?: LspParameter[];
+};
+export type LspSignatureHelp = {
+    signatures: LspSignature[];
+    activeSignature?: number;
+    activeParameter?: number;
+} | null;
+
+export function toSignatureHelp(
+    result: LspSignatureHelp
+): monaco.languages.SignatureHelpResult | null {
+    if (!result?.signatures?.length) return null;
+    return {
+        value: {
+            signatures: result.signatures.map((sig) => ({
+                label: sig.label,
+                documentation: docToMarkdown(sig.documentation),
+                parameters: (sig.parameters ?? []).map((p) => ({
+                    label: p.label,
+                    documentation: docToMarkdown(p.documentation),
+                })),
+            })),
+            activeSignature: result.activeSignature ?? 0,
+            activeParameter: result.activeParameter ?? 0,
+        },
+        dispose() {},
+    };
 }
 
 const SEVERITY: Record<number, monaco.MarkerSeverity> = {

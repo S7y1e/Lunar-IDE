@@ -6,6 +6,10 @@ import {
     toCompletionItem,
     toHover,
     toMarker,
+    toMonacoLocations,
+    toDocumentSymbols,
+    toWorkspaceEdit,
+    toSignatureHelp,
 } from "./convert";
 import type { LspCompletionItem } from "./convert";
 
@@ -75,6 +79,67 @@ export function registerLuauLsp(client: LuauLspClient): () => void {
                         toLspPosition(position)
                     );
                     return toHover(result);
+                },
+            })
+        );
+
+        disposables.push(
+            monaco.languages.registerDefinitionProvider(language, {
+                async provideDefinition(model, position) {
+                    const result = await client.definition(
+                        model.uri.toString(),
+                        toLspPosition(position)
+                    );
+                    return toMonacoLocations(result);
+                },
+            })
+        );
+
+        disposables.push(
+            monaco.languages.registerReferenceProvider(language, {
+                async provideReferences(model, position) {
+                    const result = await client.references(
+                        model.uri.toString(),
+                        toLspPosition(position)
+                    );
+                    return toMonacoLocations(result);
+                },
+            })
+        );
+
+        disposables.push(
+            monaco.languages.registerDocumentSymbolProvider(language, {
+                async provideDocumentSymbols(model) {
+                    const result = await client.documentSymbols(
+                        model.uri.toString()
+                    );
+                    return toDocumentSymbols(result);
+                },
+            })
+        );
+
+        disposables.push(
+            monaco.languages.registerRenameProvider(language, {
+                async provideRenameEdits(model, position, newName) {
+                    const result = await client.rename(
+                        model.uri.toString(),
+                        toLspPosition(position),
+                        newName
+                    );
+                    return toWorkspaceEdit(result);
+                },
+            })
+        );
+
+        disposables.push(
+            monaco.languages.registerSignatureHelpProvider(language, {
+                signatureHelpTriggerCharacters: ["(", ","],
+                async provideSignatureHelp(model, position) {
+                    const result = await client.signatureHelp(
+                        model.uri.toString(),
+                        toLspPosition(position)
+                    );
+                    return toSignatureHelp(result);
                 },
             })
         );

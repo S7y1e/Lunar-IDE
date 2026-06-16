@@ -9,6 +9,10 @@ import {
     LspCompletionResult,
     LspCompletionItem,
     LspHover,
+    LspLocationResult,
+    LspDocumentSymbol,
+    LspWorkspaceEdit,
+    LspSignatureHelp,
 } from "./convert";
 
 const SIDECAR = "binaries/luau-lsp";
@@ -201,6 +205,54 @@ export class LuauLspClient {
     async hover(uri: string, position: LspPosition): Promise<LspHover> {
         await this.ready;
         return this.conn.sendRequest("textDocument/hover", {
+            textDocument: { uri },
+            position,
+        });
+    }
+
+    async definition(uri: string, position: LspPosition): Promise<LspLocationResult> {
+        await this.ready;
+        return this.conn.sendRequest("textDocument/definition", {
+            textDocument: { uri },
+            position,
+        });
+    }
+
+    async references(uri: string, position: LspPosition): Promise<LspLocationResult> {
+        await this.ready;
+        return this.conn.sendRequest("textDocument/references", {
+            textDocument: { uri },
+            position,
+            context: { includeDeclaration: true },
+        });
+    }
+
+    async documentSymbols(uri: string): Promise<LspDocumentSymbol[] | null> {
+        await this.ready;
+        return this.conn.sendRequest("textDocument/documentSymbol", {
+            textDocument: { uri },
+        });
+    }
+
+    async rename(
+        uri: string,
+        position: LspPosition,
+        newName: string
+    ): Promise<LspWorkspaceEdit> {
+        await this.ready;
+        return this.conn.sendRequest("textDocument/rename", {
+            textDocument: { uri },
+            position,
+            newName,
+        });
+    }
+
+    async signatureHelp(
+        uri: string,
+        position: LspPosition
+    ): Promise<LspSignatureHelp> {
+        await this.ready;
+        return this.conn.sendRequest("textDocument/signatureHelp", {
             textDocument: { uri },
             position,
         });

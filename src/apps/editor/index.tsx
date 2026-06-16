@@ -17,7 +17,7 @@ import EditorPane from "./code-editor/editor-pane";
 import { useOpenFiles } from "./code-editor/use-open-files";
 import { useLuauLsp } from "./code-editor/luau-lsp/use-luau-lsp";
 import { useSourcemap } from "./code-editor/luau-lsp/use-sourcemap";
-import { pathToUri } from "./code-editor/luau-lsp/uri";
+import { pathToUri, uriToPath } from "./code-editor/luau-lsp/uri";
 import SyncPanel from "./sync/sync-panel";
 import { useSyncServer } from "./sync/use-sync-server";
 import RuntimePanel from "./runtime/runtime-panel";
@@ -95,28 +95,57 @@ function EditorBody({ path }: Props) {
     const resolve = useMemo(() => makeResolver(tree), [tree]);
     const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
+    // Reveal a line once Monaco has swapped to the target model — right after
+    // openFile the model may not be loaded yet, so poll a few frames.
+    const revealLine = useCallback((uri: string, line: number, column = 1) => {
+        const reveal = (attempt: number) => {
+            const editor = editorRef.current;
+            if (editor?.getModel()?.uri.toString() === uri) {
+                editor.revealLineInCenter(line);
+                editor.setPosition({ lineNumber: line, column });
+                editor.focus();
+            } else if (attempt < 60) {
+                requestAnimationFrame(() => reveal(attempt + 1));
+            }
+        };
+        reveal(0);
+    }, []);
+
     const openLocation = useCallback(
         async (dotPath: string, line: number) => {
             const source = resolve(dotPath);
             if (!source) return;
             const abs = await join(path, ...source.split("/"));
             openFile(abs);
-
-            const uri = pathToUri(abs);
-            const reveal = (attempt: number) => {
-                const editor = editorRef.current;
-                if (editor?.getModel()?.uri.toString() === uri) {
-                    editor.revealLineInCenter(line);
-                    editor.setPosition({ lineNumber: line, column: 1 });
-                    editor.focus();
-                } else if (attempt < 60) {
-                    requestAnimationFrame(() => reveal(attempt + 1));
-                }
-            };
-            reveal(0);
+            revealLine(pathToUri(abs), line);
         },
-        [resolve, path, openFile],
+        [resolve, path, openFile, revealLine],
     );
+
+    // Cross-file navigation for LSP go-to-definition / find-references: the
+    // standalone Monaco can't open another file, so route its open requests
+    // through Lunar's own openFile + reveal.
+    useEffect(() => {
+        const opener = monaco.editor.registerEditorOpener({
+            openCodeEditor(_source, resource, selectionOrPosition) {
+                const file = uriToPath(resource.toString());
+                openFile(file);
+                const line =
+                    selectionOrPosition && "lineNumber" in selectionOrPosition
+                        ? selectionOrPosition.lineNumber
+                        : selectionOrPosition?.startLineNumber ?? 1;
+                const column =
+                    selectionOrPosition && "column" in selectionOrPosition
+                        ? selectionOrPosition.column
+                        : selectionOrPosition?.startColumn ?? 1;
+                // Reveal against the model's canonical uri (pathToUri of the
+                // path), not the raw LSP uri (which encodes the drive colon).
+                revealLine(pathToUri(file), line, column);
+                return true;
+            },
+        });
+        return () => opener.dispose();
+    }, [openFile, revealLine]);
 
     // Runtime errors become inline squiggles on the source line.
     const diagnostics = useMemo(
