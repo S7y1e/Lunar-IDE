@@ -11,6 +11,7 @@ import Sidebar from "./file-tree/sidebar";
 import { useSidebarPanel } from "./file-tree/use-sidebar-panel";
 import SearchPalette from "./search/search-palette";
 import { useCommandPalette } from "./search/use-command-palette";
+import { type Command } from "./search/commands";
 import EditorTabs from "./code-editor/editor-tabs";
 import EditorPane from "./code-editor/editor-pane";
 import { useOpenFiles } from "./code-editor/use-open-files";
@@ -21,6 +22,9 @@ import SyncPanel from "./sync/sync-panel";
 import { useSyncServer } from "./sync/use-sync-server";
 import RuntimePanel from "./runtime/runtime-panel";
 import { useRuntimeBridge } from "./runtime/use-runtime-bridge";
+import Toasts from "./notifications/toasts";
+import { useToasts } from "./notifications/use-toasts";
+import { useBuild } from "./build/use-build";
 import { makeResolver } from "./runtime/resolve-instance";
 import { extractDiagnostics } from "./runtime/diagnostics";
 import { useRuntimeMarkers } from "./runtime/use-runtime-markers";
@@ -49,13 +53,15 @@ export default function Editor({ path }: Props) {
 }
 
 function EditorBody({ path }: Props) {
-    const { currentView, toggleView } = useActivityView();
+    const { currentView, toggleView, showView } = useActivityView();
     const sidebarRef = useSidebarPanel(currentView);
     const palette = useCommandPalette();
     const [settingsOpen, setSettingsOpen] = useState(false);
     const sync = useSyncServer(path);
     const runtime = useRuntimeBridge();
     const toolchain = useRokit(path);
+    const toasts = useToasts();
+    const { build } = useBuild(path, sync.backend, toasts);
     const terminal = useTerminalPanel();
 
     useSourcemap(path);
@@ -105,6 +111,42 @@ function EditorBody({ path }: Props) {
         [runtime.messages, resolve, path],
     );
     useRuntimeMarkers(diagnostics);
+
+    // Command surface: actions on the project, surfaced in the palette (type ">").
+    const commands = useMemo<Command[]>(
+        () => [
+            {
+                id: "sync.start",
+                title: "Sync: Start server",
+                hint: `${sync.backend} · :${sync.port}`,
+                enabled: sync.status !== "running",
+                run: sync.start,
+            },
+            {
+                id: "sync.stop",
+                title: "Sync: Stop server",
+                enabled: sync.status === "running",
+                run: sync.stop,
+            },
+            {
+                id: "build",
+                title: "Build: Place file",
+                hint: `${sync.backend} build`,
+                run: build,
+            },
+            { id: "runtime.clear", title: "Runtime: Clear output", run: runtime.clear },
+            { id: "terminal.toggle", title: "Terminal: Toggle", run: terminal.toggle },
+            { id: "view.project", title: "Go to: Project", run: () => showView("project") },
+            { id: "view.datamodel", title: "Go to: DataModel", run: () => showView("datamodel") },
+            { id: "view.deps", title: "Go to: Dependencies", run: () => showView("deps") },
+            { id: "view.events", title: "Go to: Events", run: () => showView("events") },
+            { id: "view.sync", title: "Go to: Sync", run: () => showView("sync") },
+            { id: "view.runtime", title: "Go to: Runtime", run: () => showView("runtime") },
+            { id: "view.toolchain", title: "Go to: Toolchain", run: () => showView("toolchain") },
+            { id: "settings.open", title: "Settings: Open", run: () => setSettingsOpen(true) },
+        ],
+        [sync.backend, sync.port, sync.status, sync.start, sync.stop, build, runtime.clear, terminal.toggle, showView],
+    );
 
     // Track which files have unsaved changes
     const [dirtyFiles, setDirtyFiles] = useState<Set<string>>(new Set());
@@ -340,6 +382,8 @@ function EditorBody({ path }: Props) {
             {palette.isOpen && (
                 <SearchPalette
                     path={path}
+                    commands={commands}
+                    initialQuery={palette.initialQuery}
                     onClose={palette.close}
                     onOpen={(file) => openFile(file.path)}
                 />
@@ -348,6 +392,8 @@ function EditorBody({ path }: Props) {
             {settingsOpen && (
                 <SettingsView onClose={() => setSettingsOpen(false)} />
             )}
+
+            <Toasts toasts={toasts.toasts} onDismiss={toasts.dismiss} />
         </div>
     );
 }

@@ -12,5 +12,7 @@ export function useActivityView() {
     const toggleView = (id: ActivityViewId) =>
         setCurrentView((current) => (current === id ? null : id));
 
-    return { currentView, toggleView };
+    const showView = (id: ActivityViewId) => setCurrentView(id);
+
+    return { currentView, toggleView, showView };
 }
