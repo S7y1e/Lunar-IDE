@@ -14,6 +14,7 @@ export type ProjectSnapshot = {
     projectFile: string;
     syncBackend: string | null;
     testCommand: string | null;
+    buildOutput: string | null;
 };
 
 export type TestRun = { code: number; output: string };

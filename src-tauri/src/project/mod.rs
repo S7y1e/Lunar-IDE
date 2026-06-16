@@ -23,11 +23,18 @@ pub struct Manifest {
     pub sourcemap: SourcemapManifest,
     #[serde(default)]
     pub test: TestManifest,
+    #[serde(default)]
+    pub build: BuildManifest,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct TestManifest {
     pub command: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct BuildManifest {
+    pub output: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -87,6 +94,7 @@ impl ProjectModel {
             project_file: self.project_file.clone(),
             sync_backend: self.sync_backend(),
             test_command: self.manifest.test.command.clone(),
+            build_output: self.manifest.build.output.clone(),
         }
     }
 
@@ -108,6 +116,7 @@ pub struct ProjectSnapshot {
     pub project_file: String,
     pub sync_backend: Option<String>,
     pub test_command: Option<String>,
+    pub build_output: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

@@ -20,7 +20,8 @@ export function useBuild(rootPath: string, backend: SyncBackend, toasts: Toasts)
     const build = async () => {
         const snapshot = await getProjectSnapshot();
         const projectFile = snapshot?.projectFile ?? "default.project.json";
-        const output = `${snapshot?.name ?? "place"}.rbxl`;
+        const output =
+            snapshot?.buildOutput ?? `${snapshot?.name ?? "place"}.rbxl`;
 
         const id = toasts.push("info", `Building ${output}…`);
         let stderr = "";
