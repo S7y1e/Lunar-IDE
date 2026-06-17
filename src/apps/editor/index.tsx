@@ -37,6 +37,7 @@ import { useTest } from "./build/use-test";
 import FindPanel from "./find/find-panel";
 import HierarchyPanel from "./hierarchy/hierarchy-panel";
 import CallHierarchyPanel, { type CallTarget } from "./callhierarchy/call-hierarchy-panel";
+import StructurePanel from "./structure/structure-panel";
 import RenameDialog from "./refactor/rename-dialog";
 import { makeResolver } from "./runtime/resolve-instance";
 import { extractDiagnostics } from "./runtime/diagnostics";
@@ -123,6 +124,15 @@ function EditorBody({ path }: Props) {
             }
         };
         reveal(0);
+    }, []);
+
+    // Jump the active editor to a line/column (used by the Structure outline).
+    const goToLine = useCallback((line: number, column: number) => {
+        const editor = editorRef.current;
+        if (!editor) return;
+        editor.revealLineInCenter(line);
+        editor.setPosition({ lineNumber: line, column });
+        editor.focus();
     }, []);
 
     const openLocation = useCallback(
@@ -238,6 +248,7 @@ function EditorBody({ path }: Props) {
             { id: "terminal.toggle", title: "Terminal: Toggle", run: terminal.toggle },
             { id: "view.project", title: "Go to: Project", run: () => showView("project") },
             { id: "view.datamodel", title: "Go to: DataModel", run: () => showView("datamodel") },
+            { id: "view.structure", title: "Go to: Structure", run: () => showView("structure") },
             { id: "view.deps", title: "Go to: Dependencies", run: () => showView("deps") },
             { id: "view.hierarchy", title: "Go to: Hierarchy", run: () => showView("hierarchy") },
             { id: "callhierarchy.show", title: "Call Hierarchy", run: showCallHierarchy },
@@ -420,6 +431,8 @@ function EditorBody({ path }: Props) {
                     >
                         {currentView === "search" ? (
                             <FindPanel root={path} onOpenAt={openFileAt} />
+                        ) : currentView === "structure" ? (
+                            <StructurePanel activeFile={activeFile} onGoTo={goToLine} />
                         ) : currentView === "sync" ? (
                             <SyncPanel
                                 backend={sync.backend}

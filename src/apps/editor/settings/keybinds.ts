@@ -10,6 +10,7 @@ export const BINDABLE: Bindable[] = [
     { id: "terminal.toggle", label: "Terminal: Toggle", defaultKey: "Ctrl+`" },
     { id: "search.find", label: "Search: Find in Files", defaultKey: "Ctrl+Shift+F" },
     { id: "refactor.renameModule", label: "Refactor: Rename module", defaultKey: "Shift+F6" },
+    { id: "view.structure", label: "Go to: Structure", defaultKey: "Alt+7" },
     { id: "view.hierarchy", label: "Go to: Hierarchy", defaultKey: "" },
     { id: "callhierarchy.show", label: "Call Hierarchy", defaultKey: "Ctrl+Alt+H" },
     { id: "sync.start", label: "Sync: Start server", defaultKey: "" },

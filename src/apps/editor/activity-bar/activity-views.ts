@@ -10,11 +10,13 @@ import {
     VscSearch,
     VscTypeHierarchy,
     VscCallIncoming,
+    VscSymbolClass,
 } from "react-icons/vsc";
 
 export type ActivityViewId =
     | "project"
     | "search"
+    | "structure"
     | "datamodel"
     | "deps"
     | "hierarchy"
@@ -40,6 +42,11 @@ export const ACTIVITY_VIEWS: ActivityView[] = [
         id: "search",
         label: "Search",
         icon: VscSearch,
+    },
+    {
+        id: "structure",
+        label: "Structure",
+        icon: VscSymbolClass,
     },
     {
         id: "datamodel",
