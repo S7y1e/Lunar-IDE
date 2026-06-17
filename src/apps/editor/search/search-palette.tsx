@@ -12,6 +12,7 @@ type Props = {
     initialQuery?: string;
     onClose: () => void;
     onOpen: (file: ProjectFile) => void;
+    onOpenSymbol: (file: string, line: number, column: number) => void;
 };
 
 export default function SearchPalette({
@@ -20,14 +21,17 @@ export default function SearchPalette({
     initialQuery = "",
     onClose,
     onOpen,
+    onOpenSymbol,
 }: Props) {
-    const { query, setQuery, isCommand, items, active, setActive, moveActive } =
+    const { query, setQuery, isCommand, isSymbol, items, active, setActive, moveActive } =
         usePalette(path, commands, initialQuery);
 
     const choose = (index: number) => {
         const item = items[index];
         if (!item) return;
         if (item.kind === "command") item.command.run();
+        else if (item.kind === "symbol")
+            onOpenSymbol(item.symbol.file, item.symbol.line, item.symbol.column);
         else onOpen(item.file);
         onClose();
     };
@@ -51,21 +55,39 @@ export default function SearchPalette({
     return (
         <div className={styles.paletteOverlay} onClick={onClose}>
             <div className={styles.palette} onClick={(e) => e.stopPropagation()}>
-                <PaletteTabs mode={isCommand ? "actions" : "files"} />
+                <PaletteTabs
+                    mode={isSymbol ? "symbols" : isCommand ? "actions" : "files"}
+                />
 
                 <input
                     className={styles.paletteInput}
                     value={query}
                     autoFocus
                     spellCheck={false}
-                    placeholder="Search files — type > for actions"
+                    placeholder="Search files — > actions, # symbols"
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={onKeyDown}
                 />
 
                 <div className={styles.paletteResults}>
                     {items.map((item, i) =>
-                        item.kind === "command" ? (
+                        item.kind === "symbol" ? (
+                            <div
+                                key={`${item.symbol.file}:${item.symbol.line}:${i}`}
+                                className={`${styles.paletteItem} ${
+                                    i === active ? styles.paletteItemActive : ""
+                                }`}
+                                onMouseEnter={() => setActive(i)}
+                                onClick={() => choose(i)}
+                            >
+                                <span className={styles.paletteName}>
+                                    {item.symbol.container}.{item.symbol.name}
+                                </span>
+                                <span className={styles.palettePath}>
+                                    {item.symbol.file}:{item.symbol.line}
+                                </span>
+                            </div>
+                        ) : item.kind === "command" ? (
                             <div
                                 key={item.command.id}
                                 className={`${styles.paletteItem} ${

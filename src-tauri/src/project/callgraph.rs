@@ -20,7 +20,7 @@ pub struct CallerSite {
     pub column: u32,
 }
 
-enum K {
+pub(super) enum K {
     Word(String),
     Dot,
     Colon,
@@ -28,15 +28,15 @@ enum K {
     Other,
 }
 
-struct Tok {
-    line: u32,
-    col: u32,
-    k: K,
+pub(super) struct Tok {
+    pub line: u32,
+    pub col: u32,
+    pub k: K,
 }
 
 // Tokenize tracking line/column, reusing lex_util so strings/comments don't
 // produce false words.
-fn scan(src: &str) -> Vec<Tok> {
+pub(super) fn scan(src: &str) -> Vec<Tok> {
     let b = src.as_bytes();
     let n = b.len();
     let mut i = 0;

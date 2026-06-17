@@ -10,6 +10,10 @@ export function useCommandPalette() {
                 e.preventDefault();
                 setInitialQuery(e.shiftKey ? ">" : "");
                 setIsOpen(true);
+            } else if (e.ctrlKey && (e.key === "t" || e.key === "T")) {
+                e.preventDefault();
+                setInitialQuery("#");
+                setIsOpen(true);
             }
         };
         window.addEventListener("keydown", onKey);
@@ -25,6 +29,10 @@ export function useCommandPalette() {
         },
         openCommands: () => {
             setInitialQuery(">");
+            setIsOpen(true);
+        },
+        openSymbols: () => {
+            setInitialQuery("#");
             setIsOpen(true);
         },
         close: () => setIsOpen(false),

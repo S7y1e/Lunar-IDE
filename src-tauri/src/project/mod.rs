@@ -7,6 +7,7 @@ use tauri::{AppHandle, Emitter, State};
 pub mod callgraph;
 pub mod dependencies;
 pub mod events;
+pub mod index;
 pub mod search;
 mod event_ctx;
 mod event_scan;

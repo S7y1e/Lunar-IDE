@@ -49,6 +49,18 @@ export function callersOf(name: string): Promise<CallerSite[]> {
     return invoke("project_callers", { name });
 }
 
+export type ProjectSymbol = {
+    name: string;
+    container: string;
+    file: string;
+    line: number;
+    column: number;
+};
+
+export function projectSymbols(query: string): Promise<ProjectSymbol[]> {
+    return invoke("project_symbols", { query });
+}
+
 export function openProject(root: string): Promise<ProjectSnapshot> {
     return invoke("project_open", { root });
 }

@@ -567,6 +567,7 @@ function EditorBody({ path }: Props) {
                     initialQuery={palette.initialQuery}
                     onClose={palette.close}
                     onOpen={(file) => openFile(file.path)}
+                    onOpenSymbol={openFileAt}
                 />
             )}
 
