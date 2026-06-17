@@ -22,7 +22,7 @@ export default function FileTreeNode({
     defaultExpanded = false,
     onChanged,
 }: Props) {
-    const { selected, select, openFile } = useContext(TreeSelectionContext);
+    const { selected, select, openFile, renameNode } = useContext(TreeSelectionContext);
     const {
         expanded,
         children,
@@ -37,7 +37,7 @@ export default function FileTreeNode({
         submitCreate,
         submitRename,
         menuItems,
-    } = useTreeNode({ node, defaultExpanded, onChanged });
+    } = useTreeNode({ node, defaultExpanded, onChanged, renameNode });
 
     const handleClick = () => {
         select(node.path);

@@ -1,10 +1,15 @@
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use serde::Serialize;
 use tauri::State;
 
 use super::callgraph::{scan, Tok, K};
-use super::ProjectStore;
+use super::dependencies::{collect_locals, index_maps, is_vendored};
+use super::luau_lex::lex;
+use super::{DataModelNode, ProjectStore};
+
+const SOURCEMAP_FILE: &str = "sourcemap.json";
 
 const SKIP_DIRS: &[&str] = &["node_modules", "target", "dist", "build"];
 const SCRIPT_EXT: [&str; 2] = [".luau", ".lua"];
@@ -124,4 +129,150 @@ pub fn project_symbols(store: State<'_, ProjectStore>, query: String) -> Vec<Sym
     let mut out = Vec::new();
     walk(&root, &root, &q, &mut out);
     out
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Usage {
+    pub file: String,
+    pub line: u32,
+    pub column: u32,
+    pub text: String,
+    pub call: bool,
+}
+
+struct Ctx {
+    by_chain: HashMap<Vec<String>, String>,
+    file_to_chain: HashMap<String, Vec<String>>,
+    root_name: String,
+    services: HashSet<String>,
+}
+
+// Which module file a single receiver identifier refers to, within `file`.
+fn resolve_receiver(root: &Path, file: &str, receiver: &str, ctx: &Ctx) -> Option<String> {
+    if receiver.is_empty() || receiver == "script" {
+        return Some(file.to_string());
+    }
+    let chain = ctx.file_to_chain.get(file)?;
+    let content = std::fs::read_to_string(root.join(file)).ok()?;
+    let locals = collect_locals(&lex(&content), chain, &ctx.root_name, &ctx.services);
+    locals.get(receiver).and_then(|c| ctx.by_chain.get(c).cloned())
+}
+
+// Precise project-wide usages of `module`.`member` — every `Z.member` /
+// `Z:member` where Z resolves (via require) to the same module file.
+#[tauri::command]
+pub fn project_member_usages(
+    store: State<'_, ProjectStore>,
+    from_file: String,
+    receiver: String,
+    member: String,
+) -> Vec<Usage> {
+    let root = match store.0.lock().unwrap().as_ref().map(|m| m.root.clone()) {
+        Some(r) => r,
+        None => return vec![],
+    };
+    let tree: DataModelNode = match std::fs::read_to_string(root.join(SOURCEMAP_FILE))
+        .ok()
+        .and_then(|t| serde_json::from_str(&t).ok())
+    {
+        Some(t) => t,
+        None => return vec![],
+    };
+    let (by_chain, file_to_chain, root_name, services) = index_maps(&tree);
+    let ctx = Ctx { by_chain, file_to_chain, root_name, services };
+
+    let module = resolve_receiver(&root, &from_file, &receiver, &ctx).unwrap_or(from_file);
+
+    let mut out = Vec::new();
+    walk_usages(&root, &root, &member, &module, &ctx, &mut out);
+    out
+}
+
+fn walk_usages(
+    root: &Path,
+    dir: &Path,
+    member: &str,
+    module: &str,
+    ctx: &Ctx,
+    out: &mut Vec<Usage>,
+) {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if path.is_dir() {
+            if name.starts_with('.') || SKIP_DIRS.contains(&name.as_str()) {
+                continue;
+            }
+            walk_usages(root, &path, member, module, ctx, out);
+        } else if SCRIPT_EXT.iter().any(|e| name.ends_with(e)) {
+            let rel = path
+                .strip_prefix(root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
+            if is_vendored(&rel) {
+                continue;
+            }
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                scan_usages(&rel, &content, member, module, ctx, out);
+            }
+        }
+    }
+}
+
+fn scan_usages(
+    rel: &str,
+    content: &str,
+    member: &str,
+    module: &str,
+    ctx: &Ctx,
+    out: &mut Vec<Usage>,
+) {
+    let chain = match ctx.file_to_chain.get(rel) {
+        Some(c) => c,
+        None => return,
+    };
+    let locals = collect_locals(&lex(content), chain, &ctx.root_name, &ctx.services);
+    let toks = scan(content);
+    let lines: Vec<&str> = content.lines().collect();
+
+    for i in 2..toks.len() {
+        let Tok { k: K::Word(m), line, col } = &toks[i] else {
+            continue;
+        };
+        if m != member || !matches!(toks[i - 1].k, K::Dot | K::Colon) {
+            continue;
+        }
+        let K::Word(recv) = &toks[i - 2].k else {
+            continue;
+        };
+        // skip the definition site `function Z.member`
+        if i >= 3 && matches!(&toks[i - 3].k, K::Word(w) if w == "function") {
+            continue;
+        }
+        let target = if recv == "script" {
+            Some(rel.to_string())
+        } else {
+            locals.get(recv).and_then(|c| ctx.by_chain.get(c).cloned())
+        };
+        if target.as_deref() != Some(module) {
+            continue;
+        }
+        let text = lines
+            .get((*line as usize).saturating_sub(1))
+            .map(|l| l.trim().chars().take(200).collect::<String>())
+            .unwrap_or_default();
+        out.push(Usage {
+            file: rel.to_string(),
+            line: *line,
+            column: *col,
+            text,
+            call: matches!(toks.get(i + 1).map(|t| &t.k), Some(K::LParen)),
+        });
+    }
 }

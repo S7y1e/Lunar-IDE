@@ -10,9 +10,10 @@ type Props = {
     currentView: ActivityViewId | null;
     path: string;
     onOpenFile: (path: string) => void;
+    onRename?: (node: FileNode, newName: string) => Promise<string | null>;
 };
 
-export default function Sidebar({ currentView, path, onOpenFile }: Props) {
+export default function Sidebar({ currentView, path, onOpenFile, onRename }: Props) {
     const [selected, setSelected] = useState<string | null>(null);
     const [treeKey, setTreeKey] = useState(0);
 
@@ -53,7 +54,7 @@ export default function Sidebar({ currentView, path, onOpenFile }: Props) {
             <div className={style.sidebarTree}>
                 {currentView === "project" && (
                     <TreeSelectionContext.Provider
-                        value={{ selected, select: setSelected, openFile: onOpenFile }}
+                        value={{ selected, select: setSelected, openFile: onOpenFile, renameNode: onRename }}
                     >
                         <FileTreeNode
                             key={`${rootNode.path}-${treeKey}`}

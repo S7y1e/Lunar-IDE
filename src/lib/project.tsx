@@ -61,6 +61,22 @@ export function projectSymbols(query: string): Promise<ProjectSymbol[]> {
     return invoke("project_symbols", { query });
 }
 
+export type Usage = {
+    file: string;
+    line: number;
+    column: number;
+    text: string;
+    call: boolean;
+};
+
+export function memberUsages(
+    fromFile: string,
+    receiver: string,
+    member: string
+): Promise<Usage[]> {
+    return invoke("project_member_usages", { fromFile, receiver, member });
+}
+
 export function openProject(root: string): Promise<ProjectSnapshot> {
     return invoke("project_open", { root });
 }

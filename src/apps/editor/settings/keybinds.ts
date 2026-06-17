@@ -13,6 +13,7 @@ export const BINDABLE: Bindable[] = [
     { id: "view.structure", label: "Go to: Structure", defaultKey: "Alt+7" },
     { id: "view.hierarchy", label: "Go to: Hierarchy", defaultKey: "" },
     { id: "callhierarchy.show", label: "Call Hierarchy", defaultKey: "Ctrl+Alt+H" },
+    { id: "usages.find", label: "Find Usages", defaultKey: "Alt+F7" },
     { id: "sync.start", label: "Sync: Start server", defaultKey: "" },
     { id: "sync.stop", label: "Sync: Stop server", defaultKey: "" },
     { id: "runtime.clear", label: "Runtime: Clear output", defaultKey: "" },

@@ -11,6 +11,7 @@ import {
     VscTypeHierarchy,
     VscCallIncoming,
     VscSymbolClass,
+    VscListSelection,
 } from "react-icons/vsc";
 
 export type ActivityViewId =
@@ -21,6 +22,7 @@ export type ActivityViewId =
     | "deps"
     | "hierarchy"
     | "callhierarchy"
+    | "usages"
     | "events"
     | "sync"
     | "runtime"
@@ -67,6 +69,11 @@ export const ACTIVITY_VIEWS: ActivityView[] = [
         id: "callhierarchy",
         label: "Call Hierarchy",
         icon: VscCallIncoming,
+    },
+    {
+        id: "usages",
+        label: "Usages",
+        icon: VscListSelection,
     },
     {
         id: "events",

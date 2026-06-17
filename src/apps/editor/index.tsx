@@ -38,7 +38,12 @@ import FindPanel from "./find/find-panel";
 import HierarchyPanel from "./hierarchy/hierarchy-panel";
 import CallHierarchyPanel, { type CallTarget } from "./callhierarchy/call-hierarchy-panel";
 import StructurePanel from "./structure/structure-panel";
+import UsagesPanel, { type UsageTarget } from "./usages/usages-panel";
+import { toRelative } from "./data-model/instance-path";
 import RenameDialog from "./refactor/rename-dialog";
+import { buildRenamePlanForFile, applyRenamePlan } from "./refactor/rename-module";
+import { renameEntry, type FileNode } from "../../lib/filesystem";
+import { message } from "@tauri-apps/plugin-dialog";
 import { makeResolver } from "./runtime/resolve-instance";
 import { extractDiagnostics } from "./runtime/diagnostics";
 import { useRuntimeMarkers } from "./runtime/use-runtime-markers";
@@ -73,6 +78,7 @@ function EditorBody({ path }: Props) {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [renaming, setRenaming] = useState(false);
     const [callTarget, setCallTarget] = useState<CallTarget | null>(null);
+    const [usageTarget, setUsageTarget] = useState<UsageTarget | null>(null);
     const sync = useSyncServer(path);
     const runtime = useRuntimeBridge();
     const toolchain = useRokit(path);
@@ -100,8 +106,35 @@ function EditorBody({ path }: Props) {
         setActiveFile,
         openFile,
         closeFile,
+        renameFile,
         reorderFiles,
     } = useOpenFiles();
+
+    // Rename from the file tree: for module files this rewrites requires in
+    // dependents (same engine as the Rename dialog); other files/folders just
+    // move on disk. Either way open tabs follow the new path. Returns the new
+    // absolute path so the tree can settle.
+    const renameNode = useCallback(
+        async (node: FileNode, newName: string): Promise<string | null> => {
+            try {
+                let newAbs: string;
+                if (!node.isDir && /\.luau?$/i.test(node.path)) {
+                    const plan = await buildRenamePlanForFile(path, node.path, newName);
+                    newAbs = plan
+                        ? await applyRenamePlan(path, plan)
+                        : await renameEntry(node.path, newName);
+                } else {
+                    newAbs = await renameEntry(node.path, newName);
+                }
+                renameFile(node.path, newAbs);
+                return newAbs;
+            } catch (err) {
+                await message(String(err), { title: "Error", kind: "error" });
+                return null;
+            }
+        },
+        [path, renameFile],
+    );
 
     // Remap a Studio stack location (instance path + line) to the owned source
     // file, open it, and jump to the line. The editor instance is captured on
@@ -169,6 +202,26 @@ function EditorBody({ path }: Props) {
         setCallTarget({ name: word });
         showView("callhierarchy");
     }, [showView, toasts]);
+
+    // Find Usages of the module member at the cursor (precise, cross-module).
+    const showFindUsages = useCallback(() => {
+        const editor = editorRef.current;
+        const model = editor?.getModel();
+        const pos = editor?.getPosition();
+        const w = model && pos ? model.getWordAtPosition(pos) : null;
+        if (!model || !pos || !w || !activeFile) {
+            toasts.push("error", "Put the cursor on a member first");
+            return;
+        }
+        const before = model.getLineContent(pos.lineNumber).slice(0, w.startColumn - 1);
+        const receiver = before.match(/([A-Za-z_]\w*)\s*[.:]\s*$/)?.[1] ?? "";
+        setUsageTarget({
+            fromFile: toRelative(path, activeFile),
+            receiver,
+            member: w.word,
+        });
+        showView("usages");
+    }, [path, activeFile, showView, toasts]);
 
     // Cross-file navigation for LSP go-to-definition / find-references: the
     // standalone Monaco can't open another file, so route its open requests
@@ -252,13 +305,14 @@ function EditorBody({ path }: Props) {
             { id: "view.deps", title: "Go to: Dependencies", run: () => showView("deps") },
             { id: "view.hierarchy", title: "Go to: Hierarchy", run: () => showView("hierarchy") },
             { id: "callhierarchy.show", title: "Call Hierarchy", run: showCallHierarchy },
+            { id: "usages.find", title: "Find Usages", run: showFindUsages },
             { id: "view.events", title: "Go to: Events", run: () => showView("events") },
             { id: "view.sync", title: "Go to: Sync", run: () => showView("sync") },
             { id: "view.runtime", title: "Go to: Runtime", run: () => showView("runtime") },
             { id: "view.toolchain", title: "Go to: Toolchain", run: () => showView("toolchain") },
             { id: "settings.open", title: "Settings: Open", run: () => setSettingsOpen(true) },
         ],
-        [sync.backend, sync.port, sync.status, sync.start, sync.stop, build, test, project?.testCommand, runtime.clear, terminal.toggle, showView, activeFile, toasts, showCallHierarchy],
+        [sync.backend, sync.port, sync.status, sync.start, sync.stop, build, test, project?.testCommand, runtime.clear, terminal.toggle, showView, activeFile, toasts, showCallHierarchy, showFindUsages],
     );
 
     // Global keybindings: match a chord against the configured/default binding
@@ -481,6 +535,8 @@ function EditorBody({ path }: Props) {
                                 target={callTarget}
                                 onOpen={openFileAt}
                             />
+                        ) : currentView === "usages" ? (
+                            <UsagesPanel target={usageTarget} onOpenAt={openFileAt} />
                         ) : currentView === "events" ? (
                             <EventsPanel root={path} onOpenFile={openFile} />
                         ) : currentView === "runtime" ? (
@@ -498,6 +554,7 @@ function EditorBody({ path }: Props) {
                                 currentView={currentView}
                                 path={path}
                                 onOpenFile={openFile}
+                                onRename={renameNode}
                             />
                         )}
                     </Panel>
@@ -582,9 +639,8 @@ function EditorBody({ path }: Props) {
                     onClose={() => setRenaming(false)}
                     onDone={(newAbs) => {
                         setRenaming(false);
-                        const old = activeFile;
-                        openFile(newAbs);
-                        if (old) closeFile(old);
+                        if (activeFile) renameFile(activeFile, newAbs);
+                        else openFile(newAbs);
                         toasts.push(
                             "success",
                             `Renamed to ${newAbs.split(/[\\/]/).pop()}`,

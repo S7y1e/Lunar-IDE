@@ -16,9 +16,10 @@ type Params = {
     node: FileNode;
     defaultExpanded: boolean;
     onChanged?: () => void;
+    renameNode?: (node: FileNode, newName: string) => Promise<string | null>;
 };
 
-export function useTreeNode({ node, defaultExpanded, onChanged }: Params) {
+export function useTreeNode({ node, defaultExpanded, onChanged, renameNode }: Params) {
     const [expanded, setExpanded] = useState(defaultExpanded);
     const [children, setChildren] = useState<FileNode[]>([]);
     const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
@@ -90,7 +91,10 @@ export function useTreeNode({ node, defaultExpanded, onChanged }: Params) {
         setRenaming(false);
         if (!trimmed || trimmed === node.name) return;
         try {
-            await renameEntry(node.path, trimmed);
+            // renameNode (when wired) rewrites requires and follows open tabs;
+            // fall back to a plain disk rename when used standalone.
+            if (renameNode) await renameNode(node, trimmed);
+            else await renameEntry(node.path, trimmed);
             onChanged?.();
         } catch (err) {
             await message(String(err), { title: "Error", kind: "error" });

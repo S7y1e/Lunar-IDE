@@ -45,24 +45,21 @@ function splitModule(rel: string): { dir: string; name: string; suffix: string }
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-// Build (don't apply) the rename plan: the new path + every line in a dependent
-// that references the old instance name. Caller previews, then applies.
-export async function buildRenamePlan(
+// Every line in a dependent of oldRel that references the old instance name,
+// rewritten to the new name. Shared by both rename entry points.
+async function collectEdits(
     root: string,
-    activeAbs: string,
+    oldRel: string,
+    oldName: string,
     newName: string
-): Promise<RenamePlan | null> {
-    const oldRel = toRelative(root, activeAbs);
-    const mod = splitModule(oldRel);
-    if (!mod || !newName.trim()) return null;
-
-    const newRel = `${mod.dir}${newName.trim()}${mod.suffix}`;
+): Promise<RenameEdit[]> {
     const graph = await getProjectDependencies();
     const dependents = (graph?.edges ?? [])
         .filter((e) => e.to === oldRel)
         .map((e) => e.from);
 
-    const word = new RegExp(`\\b${escape(mod.name)}\\b`);
+    const word = new RegExp(`\\b${escape(oldName)}\\b`);
+    const sub = new RegExp(`\\b${escape(oldName)}\\b`, "g");
     const edits: RenameEdit[] = [];
     for (const dep of dependents) {
         let text: string;
@@ -77,12 +74,51 @@ export async function buildRenamePlan(
                     file: dep,
                     line: i + 1,
                     before: line,
-                    after: line.replace(new RegExp(`\\b${escape(mod.name)}\\b`, "g"), newName.trim()),
+                    after: line.replace(sub, newName),
                 });
             }
         });
     }
-    return { oldRel, newRel, oldName: mod.name, newName: newName.trim(), edits };
+    return edits;
+}
+
+// Build (don't apply) the rename plan from a bare new name (extension kept).
+// Used by the Rename dialog, which previews then applies.
+export async function buildRenamePlan(
+    root: string,
+    activeAbs: string,
+    newName: string
+): Promise<RenamePlan | null> {
+    const oldRel = toRelative(root, activeAbs);
+    const mod = splitModule(oldRel);
+    if (!mod || !newName.trim()) return null;
+
+    const nn = newName.trim();
+    const newRel = `${mod.dir}${nn}${mod.suffix}`;
+    const edits = nn === mod.name ? [] : await collectEdits(root, oldRel, mod.name, nn);
+    return { oldRel, newRel, oldName: mod.name, newName: nn, edits };
+}
+
+// Build the rename plan from a full new filename (with extension), as typed in
+// the file tree. Returns null when the file isn't a module — caller renames it
+// plainly. The require rewrite keys off the instance name (filename minus the
+// recognized suffix), so changing only the suffix touches no dependents.
+export async function buildRenamePlanForFile(
+    root: string,
+    oldAbs: string,
+    newFullName: string
+): Promise<RenamePlan | null> {
+    const oldRel = toRelative(root, oldAbs);
+    const mod = splitModule(oldRel);
+    if (!mod) return null;
+
+    const newRel = `${mod.dir}${newFullName.trim()}`;
+    const newName = splitModule(newRel)?.name ?? null;
+    const edits =
+        newName && newName !== mod.name
+            ? await collectEdits(root, oldRel, mod.name, newName)
+            : [];
+    return { oldRel, newRel, oldName: mod.name, newName: newName ?? newFullName.trim(), edits };
 }
 
 // Apply the plan: rewrite each dependent line (only if it still matches the

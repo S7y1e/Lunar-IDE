@@ -18,6 +18,20 @@ export function useOpenFiles() {
         }
     };
 
+    // Follow a disk rename: rewrite the path of the renamed file (or every open
+    // file under a renamed folder) in place, keeping tab order and the active
+    // tab. Without this a rename leaves a tab pointing at the old, gone path.
+    const renameFile = (oldPath: string, newPath: string) => {
+        const remap = (p: string) =>
+            p === oldPath
+                ? newPath
+                : p.startsWith(oldPath + "\\") || p.startsWith(oldPath + "/")
+                  ? newPath + p.slice(oldPath.length)
+                  : p;
+        setOpenFiles((prev) => prev.map(remap));
+        setActiveFile((prev) => (prev ? remap(prev) : prev));
+    };
+
     const reorderFiles = (from: number, to: number) => {
         setOpenFiles((prev) => {
             const next = [...prev];
@@ -33,6 +47,7 @@ export function useOpenFiles() {
         setActiveFile,
         openFile,
         closeFile,
+        renameFile,
         reorderFiles,
     };
 }

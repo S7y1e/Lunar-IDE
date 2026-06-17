@@ -65,6 +65,24 @@ fn collect(
     chain.pop();
 }
 
+// Resolution maps the index reuses: chain->file, file->chain, the DataModel
+// name, and the set of service names (direct children of the root).
+pub(super) fn index_maps(
+    tree: &DataModelNode,
+) -> (
+    HashMap<Vec<String>, String>,
+    HashMap<String, Vec<String>>,
+    String,
+    HashSet<String>,
+) {
+    let root_name = tree.name.clone();
+    let services = tree.children.iter().map(|c| c.name.clone()).collect();
+    let mut by_chain = HashMap::new();
+    let mut file_to_chain = HashMap::new();
+    collect(tree, &mut Vec::new(), &mut by_chain, &mut file_to_chain);
+    (by_chain, file_to_chain, root_name, services)
+}
+
 pub fn build(root: &Path, tree: &DataModelNode) -> DependencyGraph {
     let root_name = tree.name.clone();
     let services: HashSet<String> = tree.children.iter().map(|c| c.name.clone()).collect();
@@ -149,7 +167,7 @@ pub(super) fn resolve(
     Some(chain)
 }
 
-fn collect_locals(
+pub(super) fn collect_locals(
     tokens: &[Tok],
     current: &Vec<String>,
     root_name: &str,

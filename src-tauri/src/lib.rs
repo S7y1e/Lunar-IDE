@@ -31,6 +31,7 @@ pub fn run() {
             project::search::project_search,
             project::callgraph::project_callers,
             project::index::project_symbols,
+            project::index::project_member_usages,
             runtime::runtime_bridge_status
         ])
         .setup(|app| {
