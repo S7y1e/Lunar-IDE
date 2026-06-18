@@ -1,0 +1,250 @@
+@use "../styles/vars" as *;
+
+.state {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: $surface;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 35px;
+    padding: 0 12px;
+    border-bottom: 1px solid $divider;
+}
+
+.title {
+    color: $text;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.statusRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chip {
+    padding: 1px 7px;
+    border-radius: 999px;
+    color: $text-bright;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.on {
+    background: $success;
+}
+.off {
+    background: $muted;
+}
+.play {
+    background: $accent;
+}
+
+.clear {
+    display: flex;
+    align-items: center;
+    padding: 2px;
+    border: none;
+    background: transparent;
+    color: $muted;
+    cursor: pointer;
+    border-radius: 4px;
+
+    &:hover {
+        background: $hover;
+        color: $text;
+    }
+}
+
+.active {
+    color: $text;
+    background: $hover;
+}
+
+.tree {
+    flex: 1;
+    overflow: auto;
+    padding: 4px 0;
+    font-family: "JetBrains Mono", monospace;
+}
+
+.row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 22px;
+    padding: 0 8px 0 4px;
+    color: $text;
+    font-size: 12px;
+    line-height: 22px;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    overflow: hidden;
+
+    &:hover {
+        background: $hover;
+    }
+}
+
+.indent {
+    flex: 0 0 auto;
+}
+
+.chevron {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    color: $muted;
+    transition: transform 0.12s ease;
+}
+.chevronOpen {
+    transform: rotate(90deg);
+}
+.chevronSpacer {
+    flex-shrink: 0;
+    width: 16px;
+}
+
+.key {
+    flex-shrink: 0;
+    color: $text-bright;
+}
+
+.value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: $muted;
+}
+
+.num {
+    color: $focus;
+}
+.str {
+    color: $success;
+}
+.lit {
+    color: $accent;
+}
+
+.flash {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    animation: flash 1.1s ease-out forwards;
+}
+
+.added {
+    --flash: #{$success};
+}
+.changed {
+    --flash: #{$warning};
+}
+.removed {
+    --flash: #{$danger};
+}
+
+@keyframes flash {
+    from {
+        background: var(--flash);
+        opacity: 0.32;
+    }
+    to {
+        background: var(--flash);
+        opacity: 0;
+    }
+}
+
+.guide {
+    padding: 12px 14px;
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: $text;
+
+    code {
+        padding: 0 3px;
+        border-radius: 3px;
+        background: $hover;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11.5px;
+        color: $text-bright;
+    }
+}
+
+.lead {
+    margin: 0 0 12px;
+    color: $muted;
+}
+
+.steps {
+    margin: 0;
+    padding-left: 18px;
+
+    li {
+        margin-bottom: 12px;
+        color: $muted;
+    }
+}
+
+.stepHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 5px;
+    color: $text;
+    font-weight: 600;
+}
+
+.copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    padding: 3px 8px;
+    border: 1px solid $divider;
+    border-radius: 5px;
+    background: transparent;
+    color: $text;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+        background: $hover;
+    }
+}
+
+.code {
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: $panel;
+    border: 1px solid $divider;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: $text;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.note {
+    margin: 14px 0 0;
+    padding-top: 10px;
+    border-top: 1px solid $divider;
+    color: $muted;
+    font-size: 11.5px;
+}

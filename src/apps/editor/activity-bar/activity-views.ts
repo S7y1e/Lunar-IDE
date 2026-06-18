@@ -13,6 +13,7 @@ import {
     VscSymbolClass,
     VscListSelection,
     VscTerminal,
+    VscDatabase,
 } from "react-icons/vsc";
 
 export type ActivityViewId =
@@ -27,6 +28,7 @@ export type ActivityViewId =
     | "events"
     | "sync"
     | "runtime"
+    | "state"
     | "toolchain"
     | "terminal";
 
@@ -91,6 +93,11 @@ export const ACTIVITY_VIEWS: ActivityView[] = [
         id: "runtime",
         label: "Runtime",
         icon: VscPulse,
+    },
+    {
+        id: "state",
+        label: "State",
+        icon: VscDatabase,
     },
     {
         id: "toolchain",
