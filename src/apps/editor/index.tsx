@@ -285,6 +285,12 @@ function EditorBody({ path }: Props) {
             },
             { id: "runtime.clear", title: "Runtime: Clear output", run: runtime.clear },
             {
+                id: "search.everywhere",
+                title: "Search Everywhere",
+                hint: "double-shift",
+                run: palette.open,
+            },
+            {
                 id: "search.find",
                 title: "Search: Find in Files",
                 run: () => showView("search"),
@@ -312,7 +318,7 @@ function EditorBody({ path }: Props) {
             { id: "view.toolchain", title: "Go to: Toolchain", run: () => showView("toolchain") },
             { id: "settings.open", title: "Settings: Open", run: () => setSettingsOpen(true) },
         ],
-        [sync.backend, sync.port, sync.status, sync.start, sync.stop, build, test, project?.testCommand, runtime.clear, terminal.toggle, showView, activeFile, toasts, showCallHierarchy, showFindUsages],
+        [sync.backend, sync.port, sync.status, sync.start, sync.stop, build, test, project?.testCommand, runtime.clear, terminal.toggle, showView, activeFile, toasts, showCallHierarchy, showFindUsages, palette.open],
     );
 
     // Global keybindings: match a chord against the configured/default binding
@@ -621,7 +627,7 @@ function EditorBody({ path }: Props) {
                 <SearchPalette
                     path={path}
                     commands={commands}
-                    initialQuery={palette.initialQuery}
+                    initialScope={palette.initialScope}
                     onClose={palette.close}
                     onOpen={(file) => openFile(file.path)}
                     onOpenSymbol={openFileAt}

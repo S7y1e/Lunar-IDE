@@ -1,24 +1,32 @@
 import styles from "./search.module.scss";
+import { SCOPES, type Scope } from "./use-palette";
 
-const TABS = ["All", "Classes", "Files", "Symbols", "Actions", "Text"];
+const LABEL: Record<Scope, string> = {
+    all: "All",
+    files: "Files",
+    symbols: "Symbols",
+    actions: "Actions",
+    text: "Text",
+};
 
 export default function PaletteTabs({
-    mode,
+    scope,
+    onSelect,
 }: {
-    mode: "files" | "actions" | "symbols";
+    scope: Scope;
+    onSelect: (scope: Scope) => void;
 }) {
-    const active =
-        mode === "actions" ? "Actions" : mode === "symbols" ? "Symbols" : "Files";
     return (
         <div className={styles.paletteTabs}>
-            {TABS.map((tab) => (
+            {SCOPES.map((s) => (
                 <span
-                    key={tab}
+                    key={s}
                     className={`${styles.paletteTab} ${
-                        tab === active ? styles.paletteTabActive : ""
+                        s === scope ? styles.paletteTabActive : ""
                     }`}
+                    onClick={() => onSelect(s)}
                 >
-                    {tab}
+                    {LABEL[s]}
                 </span>
             ))}
         </div>
