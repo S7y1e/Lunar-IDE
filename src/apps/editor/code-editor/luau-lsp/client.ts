@@ -3,6 +3,7 @@ import { LspConnection } from "./lsp-connection";
 import { resolveSection } from "./config";
 import { uriToPath } from "./uri";
 import { watchWorkspace } from "./file-watcher";
+import { clientCapabilities } from "./client-capabilities";
 import {
     LspPosition,
     LspDiagnostic,
@@ -281,78 +282,4 @@ export class LuauLspClient {
         this.conn.sendNotification("exit");
         await this.conn.stop();
     }
-}
-
-function clientCapabilities() {
-    return {
-        textDocument: {
-            synchronization: { dynamicRegistration: false },
-            publishDiagnostics: { relatedInformation: true },
-            completion: {
-                contextSupport: true,
-                completionItem: {
-                    snippetSupport: true,
-                    documentationFormat: ["markdown", "plaintext"],
-                    resolveSupport: {
-                        properties: [
-                            "additionalTextEdits",
-                            "documentation",
-                            "detail",
-                        ],
-                    },
-                },
-            },
-            hover: { contentFormat: ["markdown", "plaintext"] },
-            semanticTokens: {
-                dynamicRegistration: false,
-                requests: { range: false, full: { delta: false } },
-                tokenTypes: [
-                    "namespace",
-                    "type",
-                    "class",
-                    "enum",
-                    "interface",
-                    "struct",
-                    "typeParameter",
-                    "parameter",
-                    "variable",
-                    "property",
-                    "enumMember",
-                    "event",
-                    "function",
-                    "method",
-                    "macro",
-                    "keyword",
-                    "modifier",
-                    "comment",
-                    "string",
-                    "number",
-                    "regexp",
-                    "operator",
-                    "decorator",
-                ],
-                tokenModifiers: [
-                    "declaration",
-                    "definition",
-                    "readonly",
-                    "static",
-                    "deprecated",
-                    "abstract",
-                    "async",
-                    "modification",
-                    "documentation",
-                    "defaultLibrary",
-                ],
-                formats: ["relative"],
-                overlappingTokenSupport: false,
-                multilineTokenSupport: false,
-            },
-        },
-        workspace: {
-            configuration: true,
-            didChangeConfiguration: { dynamicRegistration: false },
-            didChangeWatchedFiles: { dynamicRegistration: true },
-            workspaceFolders: true,
-        },
-    };
 }
