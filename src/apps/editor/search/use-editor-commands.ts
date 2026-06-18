@@ -1,0 +1,84 @@
+import { useMemo } from "react";
+import { type Command } from "./commands";
+import { type ToolId } from "../layout/layout-types";
+import { type SyncBackend, type SyncStatus } from "../sync/use-sync-server";
+import { useToasts } from "../notifications/use-toasts";
+
+type Deps = {
+    backend: SyncBackend;
+    port: number;
+    status: SyncStatus;
+    startSync: () => void | Promise<void>;
+    stopSync: () => void | Promise<void>;
+    build: () => void;
+    test: () => void;
+    testCommand?: string | null;
+    clearRuntime: () => void;
+    openPalette: () => void;
+    toggle: (id: ToolId) => void;
+    showView: (id: ToolId) => void;
+    activeFile: string | null;
+    toasts: ReturnType<typeof useToasts>;
+    setRenaming: (open: boolean) => void;
+    setSettingsOpen: (open: boolean) => void;
+    showCallHierarchy: () => void;
+    showFindUsages: () => void;
+};
+
+// Command surface: actions on the project, surfaced in the palette (type ">").
+export function useEditorCommands(d: Deps): Command[] {
+    return useMemo<Command[]>(
+        () => [
+            {
+                id: "sync.start",
+                title: "Sync: Start server",
+                hint: `${d.backend} · :${d.port}`,
+                enabled: d.status !== "running",
+                run: d.startSync,
+            },
+            {
+                id: "sync.stop",
+                title: "Sync: Stop server",
+                enabled: d.status === "running",
+                run: d.stopSync,
+            },
+            { id: "build", title: "Build: Place file", hint: `${d.backend} build`, run: d.build },
+            {
+                id: "test",
+                title: "Test: Run tests",
+                hint: d.testCommand ?? "set [test] command in lunar.toml",
+                run: d.test,
+            },
+            { id: "runtime.clear", title: "Runtime: Clear output", run: d.clearRuntime },
+            { id: "search.everywhere", title: "Search Everywhere", hint: "double-shift", run: d.openPalette },
+            { id: "search.find", title: "Search: Find in Files", run: () => d.showView("search") },
+            {
+                id: "refactor.renameModule",
+                title: "Refactor: Rename module…",
+                hint: d.activeFile ? undefined : "open a module first",
+                run: () =>
+                    d.activeFile
+                        ? d.setRenaming(true)
+                        : d.toasts.push("error", "Open a module file to rename it"),
+            },
+            { id: "terminal.toggle", title: "Terminal: Toggle", run: () => d.toggle("terminal") },
+            { id: "view.project", title: "Go to: Project", run: () => d.showView("project") },
+            { id: "view.datamodel", title: "Go to: DataModel", run: () => d.showView("datamodel") },
+            { id: "view.structure", title: "Go to: Structure", run: () => d.showView("structure") },
+            { id: "view.deps", title: "Go to: Dependencies", run: () => d.showView("deps") },
+            { id: "view.hierarchy", title: "Go to: Hierarchy", run: () => d.showView("hierarchy") },
+            { id: "callhierarchy.show", title: "Call Hierarchy", run: d.showCallHierarchy },
+            { id: "usages.find", title: "Find Usages", run: d.showFindUsages },
+            { id: "view.events", title: "Go to: Events", run: () => d.showView("events") },
+            { id: "view.sync", title: "Go to: Sync", run: () => d.showView("sync") },
+            { id: "view.runtime", title: "Go to: Runtime", run: () => d.showView("runtime") },
+            { id: "view.toolchain", title: "Go to: Toolchain", run: () => d.showView("toolchain") },
+            { id: "settings.open", title: "Settings: Open", run: () => d.setSettingsOpen(true) },
+        ],
+        [
+            d.backend, d.port, d.status, d.startSync, d.stopSync, d.build, d.test,
+            d.testCommand, d.clearRuntime, d.toggle, d.showView, d.activeFile,
+            d.toasts, d.showCallHierarchy, d.showFindUsages, d.openPalette,
+        ],
+    );
+}
