@@ -1,0 +1,119 @@
+@use "../styles/vars" as *;
+
+/* ---- stripes (edge icon rails) ---- */
+.stripe {
+    display: flex;
+    flex-shrink: 0;
+    gap: 6px;
+    background: $surface;
+    border-radius: 8px;
+}
+
+.stripeV {
+    flex-direction: column;
+    align-items: center;
+    width: 44px;
+    padding: 8px 0;
+}
+
+.stripeH {
+    flex-direction: row;
+    align-items: center;
+    height: 36px;
+    padding: 0 8px;
+    margin-top: 8px;
+}
+
+.stripeBtn {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    cursor: pointer;
+
+    &:hover {
+        background: $hover;
+    }
+}
+
+.stripeBtnActive {
+    background: $accent;
+}
+
+.spacer {
+    flex: 1;
+}
+
+/* ---- region (one tool window) ---- */
+.region {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+    background: $panel;
+    border: 1px solid $divider;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+
+/* ---- drop overlay ---- */
+.overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1500;
+    pointer-events: none;
+}
+
+.band {
+    position: absolute;
+    display: flex;
+    pointer-events: none;
+}
+
+.bandLeft {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 28%;
+    flex-direction: column;
+}
+
+.bandRight {
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 28%;
+    flex-direction: column;
+}
+
+.bandBottom {
+    left: 28%;
+    right: 28%;
+    bottom: 0;
+    height: 34%;
+    flex-direction: row;
+}
+
+.zone {
+    flex: 1;
+    margin: 6px;
+    border: 2px dashed rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    pointer-events: auto;
+    transition: background 0.08s, border-color 0.08s;
+}
+
+.zoneHot {
+    background: rgba($accent, 0.22);
+    border-color: $accent;
+}

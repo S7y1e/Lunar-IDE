@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { VscChevronRight, VscChevronDown, VscSymbolMethod } from "react-icons/vsc";
-import { findCallers, type CallerSite } from "./call-hierarchy";
+import { findCalls, type CallNode, type Direction } from "./call-hierarchy";
 import styles from "./call-hierarchy.module.scss";
 
 type Site = { file: string; line: number; column: number };
 
 type Props = {
     name: string;
+    direction: Direction;
     site?: Site;
     ancestors: Set<string>;
     depth: number;
@@ -15,6 +16,7 @@ type Props = {
 
 export default function CallHierarchyNode({
     name,
+    direction,
     site,
     ancestors,
     depth,
@@ -22,19 +24,20 @@ export default function CallHierarchyNode({
 }: Props) {
     const isCycle = ancestors.has(name);
     const [open, setOpen] = useState(depth === 0);
-    const [callers, setCallers] = useState<CallerSite[] | null>(null);
+    const [children, setChildren] = useState<CallNode[] | null>(null);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (!open || callers !== null || isCycle) return;
+        if (!open || children !== null || isCycle) return;
         setLoading(true);
-        findCallers(name)
-            .then(setCallers)
-            .catch(() => setCallers([]))
+        findCalls(direction, name)
+            .then(setChildren)
+            .catch(() => setChildren([]))
             .finally(() => setLoading(false));
     }, [open]);
 
     const indent = (d: number) => ({ paddingLeft: 8 + d * 14 });
+    const empty = direction === "callers" ? "No callers" : "No calls";
 
     return (
         <div>
@@ -74,15 +77,16 @@ export default function CallHierarchyNode({
                     <div className={styles.note} style={indent(depth + 1)}>
                         Loading…
                     </div>
-                ) : callers && callers.length === 0 ? (
+                ) : children && children.length === 0 ? (
                     <div className={styles.note} style={indent(depth + 1)}>
-                        No callers
+                        {empty}
                     </div>
                 ) : (
-                    (callers ?? []).map((c, i) => (
+                    (children ?? []).map((c, i) => (
                         <CallHierarchyNode
-                            key={`${c.caller}:${c.file}:${c.line}:${i}`}
-                            name={c.caller}
+                            key={`${c.name}:${c.file}:${c.line}:${i}`}
+                            name={c.name}
+                            direction={direction}
                             site={{ file: c.file, line: c.line, column: c.column }}
                             ancestors={new Set([...ancestors, name])}
                             depth={depth + 1}

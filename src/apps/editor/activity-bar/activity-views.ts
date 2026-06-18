@@ -12,6 +12,7 @@ import {
     VscCallIncoming,
     VscSymbolClass,
     VscListSelection,
+    VscTerminal,
 } from "react-icons/vsc";
 
 export type ActivityViewId =
@@ -26,7 +27,8 @@ export type ActivityViewId =
     | "events"
     | "sync"
     | "runtime"
-    | "toolchain";
+    | "toolchain"
+    | "terminal";
 
 export type ActivityView = {
     id: ActivityViewId;
@@ -94,6 +96,11 @@ export const ACTIVITY_VIEWS: ActivityView[] = [
         id: "toolchain",
         label: "Toolchain",
         icon: VscTools,
+    },
+    {
+        id: "terminal",
+        label: "Terminal",
+        icon: VscTerminal,
     },
 ];
 

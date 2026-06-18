@@ -1,14 +1,19 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode, type PointerEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { join } from "@tauri-apps/api/path";
 import * as monaco from "monaco-editor";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import styles from "./editor.module.scss";
-import ActivityBar from "./activity-bar/activity-bar";
-import { useActivityView } from "./activity-bar/use-activity-view";
 import Sidebar from "./file-tree/sidebar";
-import { useSidebarPanel } from "./file-tree/use-sidebar-panel";
+import ActivityButton from "./activity-bar/activity-button";
+import { VscSettingsGear } from "react-icons/vsc";
+import { useLayout } from "./layout/use-layout";
+import Dock from "./layout/dock";
+import DockStripe from "./layout/dock-stripe";
+import DropOverlay from "./layout/drop-overlay";
+import { useDockDrag } from "./layout/use-dock-drag";
+import type { ToolId } from "./layout/layout-types";
 import SearchPalette from "./search/search-palette";
 import { useCommandPalette } from "./search/use-command-palette";
 import { type Command } from "./search/commands";
@@ -54,7 +59,6 @@ import DataModelPanel from "./data-model/data-model-panel";
 import DependenciesPanel from "./dependencies/dependencies-panel";
 import EventsPanel from "./events/events-panel";
 import TerminalView from "./terminal/terminal-view";
-import { useTerminalPanel } from "./terminal/use-terminal-panel";
 import SettingsView from "./settings/settings-view";
 import StatusBar from "./status-bar/status-bar";
 import { ProjectProvider, useProject } from "../../lib/project";
@@ -72,8 +76,10 @@ export default function Editor({ path }: Props) {
 }
 
 function EditorBody({ path }: Props) {
-    const { currentView, toggleView, showView } = useActivityView();
-    const sidebarRef = useSidebarPanel(currentView);
+    const layout = useLayout();
+    const showView = layout.open;
+    const toggleView = layout.toggle;
+    const dockDrag = useDockDrag(layout.place);
     const palette = useCommandPalette();
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [renaming, setRenaming] = useState(false);
@@ -86,7 +92,6 @@ function EditorBody({ path }: Props) {
     const { build } = useBuild(path, sync.backend, toasts);
     const { test } = useTest(toasts);
     const project = useProject();
-    const terminal = useTerminalPanel();
 
     // Surface sourcemap generation failures — without the sourcemap, DataModel
     // and runtime remap silently break.
@@ -304,7 +309,7 @@ function EditorBody({ path }: Props) {
                         ? setRenaming(true)
                         : toasts.push("error", "Open a module file to rename it"),
             },
-            { id: "terminal.toggle", title: "Terminal: Toggle", run: terminal.toggle },
+            { id: "terminal.toggle", title: "Terminal: Toggle", run: () => layout.toggle("terminal") },
             { id: "view.project", title: "Go to: Project", run: () => showView("project") },
             { id: "view.datamodel", title: "Go to: DataModel", run: () => showView("datamodel") },
             { id: "view.structure", title: "Go to: Structure", run: () => showView("structure") },
@@ -318,7 +323,7 @@ function EditorBody({ path }: Props) {
             { id: "view.toolchain", title: "Go to: Toolchain", run: () => showView("toolchain") },
             { id: "settings.open", title: "Settings: Open", run: () => setSettingsOpen(true) },
         ],
-        [sync.backend, sync.port, sync.status, sync.start, sync.stop, build, test, project?.testCommand, runtime.clear, terminal.toggle, showView, activeFile, toasts, showCallHierarchy, showFindUsages, palette.open],
+        [sync.backend, sync.port, sync.status, sync.start, sync.stop, build, test, project?.testCommand, runtime.clear, layout.toggle, showView, activeFile, toasts, showCallHierarchy, showFindUsages, palette.open],
     );
 
     // Global keybindings: match a chord against the configured/default binding
@@ -466,15 +471,110 @@ function EditorBody({ path }: Props) {
         return () => unlisten?.();
     }, []);
 
+    // Render a tool window's content by id. Holds the same wiring the old fixed
+    // sidebar had — just keyed by tool so any tool can render in any dock.
+    const renderTool = (id: ToolId): ReactNode => {
+        switch (id) {
+            case "search":
+                return <FindPanel root={path} onOpenAt={openFileAt} />;
+            case "structure":
+                return <StructurePanel activeFile={activeFile} onGoTo={goToLine} />;
+            case "sync":
+                return (
+                    <SyncPanel
+                        backend={sync.backend}
+                        onBackendChange={sync.setBackend}
+                        status={sync.status}
+                        phase={sync.phase}
+                        logs={sync.logs}
+                        port={sync.port}
+                        onPortChange={sync.setPort}
+                        onStart={sync.start}
+                        onStop={sync.stop}
+                    />
+                );
+            case "toolchain":
+                return (
+                    <ToolchainPanel
+                        tools={toolchain.tools}
+                        hasManifest={toolchain.hasManifest}
+                        busy={toolchain.busy}
+                        logs={toolchain.logs}
+                        onInstall={toolchain.install}
+                        onUpdate={toolchain.update}
+                        onInit={toolchain.init}
+                        onAdd={toolchain.add}
+                        onRemove={toolchain.remove}
+                        onSetVersion={toolchain.setVersion}
+                    />
+                );
+            case "datamodel":
+                return <DataModelPanel root={path} activeFile={activeFile} onOpenFile={openFile} />;
+            case "deps":
+                return <DependenciesPanel root={path} activeFile={activeFile} onOpenFile={openFile} />;
+            case "hierarchy":
+                return <HierarchyPanel root={path} activeFile={activeFile} onOpenFile={openFile} />;
+            case "callhierarchy":
+                return <CallHierarchyPanel target={callTarget} onOpen={openFileAt} />;
+            case "usages":
+                return <UsagesPanel target={usageTarget} onOpenAt={openFileAt} />;
+            case "events":
+                return <EventsPanel root={path} onOpenFile={openFile} />;
+            case "runtime":
+                return (
+                    <RuntimePanel
+                        messages={runtime.messages}
+                        running={runtime.running}
+                        port={runtime.port}
+                        playtest={runtime.playtest}
+                        onClear={runtime.clear}
+                        resolve={resolve}
+                        onOpen={openLocation}
+                    />
+                );
+            case "terminal":
+                return <TerminalView cwd={path} onClose={() => layout.toggle("terminal")} />;
+            default:
+                return (
+                    <Sidebar
+                        currentView="project"
+                        path={path}
+                        onOpenFile={openFile}
+                        onRename={renameNode}
+                    />
+                );
+        }
+    };
+
+    const leftSlots = layout.openSlots("left");
+    const rightSlots = layout.openSlots("right");
+    const bottomSlots = layout.openSlots("bottom");
+
+    const stripeDown = (t: ToolId, e: PointerEvent) =>
+        dockDrag.onPointerDown(t, e, () => toggleView(t));
+
+    const dockDeps = {
+        activeIn: layout.activeIn,
+        renderTool,
+        onGripDown: (t: ToolId, e: PointerEvent) => dockDrag.onPointerDown(t, e),
+    };
+
     return (
         <div className={styles.editor}>
-            <div className={styles.body}>
-                <ActivityBar
-                    active={currentView}
-                    onSelect={toggleView}
-                    terminalOpen={terminal.open}
-                    onToggleTerminal={terminal.toggle}
-                    onOpenSettings={() => setSettingsOpen(true)}
+            <div className={styles.body} style={{ position: "relative" }}>
+                <DockStripe
+                    dock="left"
+                    tools={layout.toolsInDock("left")}
+                    isOpen={layout.isOpen}
+                    onPointerDown={stripeDown}
+                    footer={
+                        <ActivityButton
+                            icon={VscSettingsGear}
+                            label="Settings"
+                            active={false}
+                            onClick={() => setSettingsOpen(true)}
+                        />
+                    }
                 />
 
                 <Group
@@ -482,96 +582,15 @@ function EditorBody({ path }: Props) {
                     className={styles.panels}
                     resizeTargetMinimumSize={{ coarse: 20, fine: 12 }}
                 >
-                    <Panel
-                        panelRef={sidebarRef}
-                        collapsible
-                        collapsedSize={0}
-                        defaultSize="260px"
-                        minSize="180px"
-                    >
-                        {currentView === "search" ? (
-                            <FindPanel root={path} onOpenAt={openFileAt} />
-                        ) : currentView === "structure" ? (
-                            <StructurePanel activeFile={activeFile} onGoTo={goToLine} />
-                        ) : currentView === "sync" ? (
-                            <SyncPanel
-                                backend={sync.backend}
-                                onBackendChange={sync.setBackend}
-                                status={sync.status}
-                                phase={sync.phase}
-                                logs={sync.logs}
-                                port={sync.port}
-                                onPortChange={sync.setPort}
-                                onStart={sync.start}
-                                onStop={sync.stop}
-                            />
-                        ) : currentView === "toolchain" ? (
-                            <ToolchainPanel
-                                tools={toolchain.tools}
-                                hasManifest={toolchain.hasManifest}
-                                busy={toolchain.busy}
-                                logs={toolchain.logs}
-                                onInstall={toolchain.install}
-                                onUpdate={toolchain.update}
-                                onInit={toolchain.init}
-                                onAdd={toolchain.add}
-                                onRemove={toolchain.remove}
-                                onSetVersion={toolchain.setVersion}
-                            />
-                        ) : currentView === "datamodel" ? (
-                            <DataModelPanel
-                                root={path}
-                                activeFile={activeFile}
-                                onOpenFile={openFile}
-                            />
-                        ) : currentView === "deps" ? (
-                            <DependenciesPanel
-                                root={path}
-                                activeFile={activeFile}
-                                onOpenFile={openFile}
-                            />
-                        ) : currentView === "hierarchy" ? (
-                            <HierarchyPanel
-                                root={path}
-                                activeFile={activeFile}
-                                onOpenFile={openFile}
-                            />
-                        ) : currentView === "callhierarchy" ? (
-                            <CallHierarchyPanel
-                                target={callTarget}
-                                onOpen={openFileAt}
-                            />
-                        ) : currentView === "usages" ? (
-                            <UsagesPanel target={usageTarget} onOpenAt={openFileAt} />
-                        ) : currentView === "events" ? (
-                            <EventsPanel root={path} onOpenFile={openFile} />
-                        ) : currentView === "runtime" ? (
-                            <RuntimePanel
-                                messages={runtime.messages}
-                                running={runtime.running}
-                                port={runtime.port}
-                                playtest={runtime.playtest}
-                                onClear={runtime.clear}
-                                resolve={resolve}
-                                onOpen={openLocation}
-                            />
-                        ) : (
-                            <Sidebar
-                                currentView={currentView}
-                                path={path}
-                                onOpenFile={openFile}
-                                onRename={renameNode}
-                            />
-                        )}
-                    </Panel>
-
-                    {currentView && <Separator className={styles.handle} />}
+                    {leftSlots.length > 0 && (
+                        <Panel collapsible defaultSize="260px" minSize="180px">
+                            <Dock dock="left" openSlots={leftSlots} {...dockDeps} />
+                        </Panel>
+                    )}
+                    {leftSlots.length > 0 && <Separator className={styles.handle} />}
 
                     <Panel className={styles.main}>
-                        <Group
-                            orientation="vertical"
-                            className={styles.mainGroup}
-                        >
+                        <Group orientation="vertical" className={styles.mainGroup}>
                             <Panel className={styles.editorPane}>
                                 <EditorTabs
                                     files={openFiles}
@@ -593,26 +612,41 @@ function EditorBody({ path }: Props) {
                                 </div>
                             </Panel>
 
-                            {terminal.open && (
+                            {bottomSlots.length > 0 && (
                                 <Separator className={styles.vHandle} />
                             )}
-
-                            <Panel
-                                panelRef={terminal.ref}
-                                collapsible
-                                collapsedSize={0}
-                                defaultSize="30%"
-                                minSize="20%"
-                            >
-                                <TerminalView
-                                    cwd={path}
-                                    onClose={terminal.close}
-                                />
-                            </Panel>
+                            {bottomSlots.length > 0 && (
+                                <Panel collapsible defaultSize="30%" minSize="20%">
+                                    <Dock dock="bottom" openSlots={bottomSlots} {...dockDeps} />
+                                </Panel>
+                            )}
                         </Group>
                     </Panel>
+
+                    {rightSlots.length > 0 && <Separator className={styles.handle} />}
+                    {rightSlots.length > 0 && (
+                        <Panel collapsible defaultSize="260px" minSize="180px">
+                            <Dock dock="right" openSlots={rightSlots} {...dockDeps} />
+                        </Panel>
+                    )}
                 </Group>
+
+                <DockStripe
+                    dock="right"
+                    tools={layout.toolsInDock("right")}
+                    isOpen={layout.isOpen}
+                    onPointerDown={stripeDown}
+                />
+
+                {dockDrag.dragTool && <DropOverlay hot={dockDrag.hot} />}
             </div>
+
+            <DockStripe
+                dock="bottom"
+                tools={layout.toolsInDock("bottom")}
+                isOpen={layout.isOpen}
+                onPointerDown={stripeDown}
+            />
 
             <StatusBar
                 status={sync.status}

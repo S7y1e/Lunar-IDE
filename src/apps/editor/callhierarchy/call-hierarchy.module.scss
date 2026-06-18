@@ -15,6 +15,32 @@
     border-bottom: 1px solid $divider;
 }
 
+.toggle {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+}
+
+.toggleBtn {
+    display: flex;
+    align-items: center;
+    padding: 2px 5px;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: $muted;
+    cursor: pointer;
+
+    &:hover {
+        background: $hover;
+    }
+}
+
+.toggleBtnActive {
+    background: $hover;
+    color: $text-bright;
+}
+
 .title {
     display: flex;
     align-items: center;

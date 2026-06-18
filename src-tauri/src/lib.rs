@@ -30,6 +30,7 @@ pub fn run() {
             project::events::project_events,
             project::search::project_search,
             project::callgraph::project_callers,
+            project::callgraph::project_callees,
             project::index::project_symbols,
             project::index::project_member_usages,
             runtime::runtime_bridge_status

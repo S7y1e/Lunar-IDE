@@ -49,6 +49,17 @@ export function callersOf(name: string): Promise<CallerSite[]> {
     return invoke("project_callers", { name });
 }
 
+export type CalleeSite = {
+    callee: string;
+    file: string;
+    line: number;
+    column: number;
+};
+
+export function calleesOf(name: string): Promise<CalleeSite[]> {
+    return invoke("project_callees", { name });
+}
+
 export type ProjectSymbol = {
     name: string;
     container: string;

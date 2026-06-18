@@ -156,9 +156,19 @@ fn base_name(rel: &str) -> String {
     file.to_string()
 }
 
-// Collect every call to `callee` in this file, attributed to the enclosing
-// function (or the file base name at top level).
-fn scan_file(rel: &str, src: &str, callee: &str, out: &mut Vec<CallerSite>) {
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CalleeSite {
+    pub callee: String, // function called from within the target
+    pub file: String,
+    pub line: u32,
+    pub column: u32,
+}
+
+// Visit every call site in this file, reporting (caller, callee, line, col) to
+// `emit`. `caller` is the enclosing function (or the file base name at top
+// level); `callee` is the called word (covers `f(`, `.f(`, `:f(`).
+fn scan_file(rel: &str, src: &str, emit: &mut dyn FnMut(&str, &str, u32, u32)) {
     let toks = scan(src);
     let top = base_name(rel);
     // (function name, block depth at definition)
@@ -204,17 +214,9 @@ fn scan_file(rel: &str, src: &str, callee: &str, out: &mut Vec<CallerSite>) {
                 }
                 "elseif" | "else" | "then" => {}
                 other if !OPENERS.contains(&other) => {
-                    if matches!(toks.get(i + 1).map(|t| &t.k), Some(K::LParen)) && other == callee {
-                        let caller = frames
-                            .last()
-                            .map(|(n, _)| n.clone())
-                            .unwrap_or_else(|| top.clone());
-                        out.push(CallerSite {
-                            caller,
-                            file: rel.to_string(),
-                            line: toks[i].line,
-                            column: toks[i].col,
-                        });
+                    if matches!(toks.get(i + 1).map(|t| &t.k), Some(K::LParen)) {
+                        let caller = frames.last().map(|(n, _)| n.as_str()).unwrap_or(top.as_str());
+                        emit(caller, other, toks[i].line, toks[i].col);
                     }
                 }
                 _ => {}
@@ -224,7 +226,7 @@ fn scan_file(rel: &str, src: &str, callee: &str, out: &mut Vec<CallerSite>) {
     }
 }
 
-fn walk(root: &Path, dir: &Path, callee: &str, out: &mut Vec<CallerSite>) {
+fn walk(root: &Path, dir: &Path, emit: &mut dyn FnMut(&str, &str, &str, u32, u32)) {
     let entries = match std::fs::read_dir(dir) {
         Ok(e) => e,
         Err(_) => return,
@@ -236,7 +238,7 @@ fn walk(root: &Path, dir: &Path, callee: &str, out: &mut Vec<CallerSite>) {
             if name.starts_with('.') || SKIP_DIRS.contains(&name.as_str()) {
                 continue;
             }
-            walk(root, &path, callee, out);
+            walk(root, &path, emit);
         } else if SCRIPT_EXT.iter().any(|e| name.ends_with(e)) {
             if let Ok(src) = std::fs::read_to_string(&path) {
                 let rel = path
@@ -244,23 +246,59 @@ fn walk(root: &Path, dir: &Path, callee: &str, out: &mut Vec<CallerSite>) {
                     .unwrap_or(&path)
                     .to_string_lossy()
                     .replace('\\', "/");
-                scan_file(&rel, &src, callee, out);
+                scan_file(&rel, &src, &mut |caller, callee, line, col| {
+                    emit(caller, callee, &rel, line, col)
+                });
             }
         }
     }
 }
 
+fn project_root(store: &State<'_, ProjectStore>, name: &str) -> Option<std::path::PathBuf> {
+    if name.trim().is_empty() {
+        return None;
+    }
+    store.0.lock().unwrap().as_ref().map(|m| m.root.clone())
+}
+
 #[tauri::command]
 pub fn project_callers(store: State<'_, ProjectStore>, name: String) -> Vec<CallerSite> {
-    let root = match store.0.lock().unwrap().as_ref().map(|m| m.root.clone()) {
+    let root = match project_root(&store, &name) {
         Some(r) => r,
         None => return vec![],
     };
     let name = name.trim();
-    if name.is_empty() {
-        return vec![];
-    }
     let mut out = Vec::new();
-    walk(&root, &root, name, &mut out);
+    walk(&root, &root, &mut |caller, callee, rel, line, column| {
+        if callee == name {
+            out.push(CallerSite {
+                caller: caller.to_string(),
+                file: rel.to_string(),
+                line,
+                column,
+            });
+        }
+    });
+    out
+}
+
+#[tauri::command]
+pub fn project_callees(store: State<'_, ProjectStore>, name: String) -> Vec<CalleeSite> {
+    let root = match project_root(&store, &name) {
+        Some(r) => r,
+        None => return vec![],
+    };
+    let name = name.trim();
+    let mut out = Vec::new();
+    walk(&root, &root, &mut |caller, callee, rel, line, column| {
+        if caller == name {
+            out.push(CalleeSite {
+                callee: callee.to_string(),
+                file: rel.to_string(),
+                line,
+                column,
+            });
+        }
+    });
     out
 }

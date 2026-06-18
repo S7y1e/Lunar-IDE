@@ -1,11 +1,26 @@
-import { callersOf, type CallerSite } from "../../../lib/project";
+import { callersOf, calleesOf } from "../../../lib/project";
 
-export type { CallerSite };
+export type Direction = "callers" | "callees";
 export type CallTarget = { name: string };
 
-// Who calls a function (by name), across the whole project — the Rust call graph
-// resolves cross-module calls the LSP can't (e.g. PlayerManager.AddPlayer used in
-// another file via require).
-export function findCallers(name: string): Promise<CallerSite[]> {
-    return callersOf(name);
+// One node shape for both directions: a related function + the call-site to
+// reveal. callers → who calls X (site = the call, in the caller's file);
+// callees → what X calls (site = the call, in X's file).
+export type CallNode = {
+    name: string;
+    file: string;
+    line: number;
+    column: number;
+};
+
+// The Rust call graph resolves cross-module calls the LSP can't (e.g.
+// PlayerManager.AddPlayer used in another file via require).
+export function findCalls(direction: Direction, name: string): Promise<CallNode[]> {
+    return direction === "callers"
+        ? callersOf(name).then((cs) =>
+              cs.map((c) => ({ name: c.caller, file: c.file, line: c.line, column: c.column }))
+          )
+        : calleesOf(name).then((cs) =>
+              cs.map((c) => ({ name: c.callee, file: c.file, line: c.line, column: c.column }))
+          );
 }
