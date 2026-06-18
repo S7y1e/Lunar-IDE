@@ -35,6 +35,8 @@ import SyncPanel from "./sync/sync-panel";
 import { useSyncServer } from "./sync/use-sync-server";
 import RuntimePanel from "./runtime/runtime-panel";
 import { useRuntimeBridge } from "./runtime/use-runtime-bridge";
+import StatePanel from "./runtime/state-panel";
+import { useStateInspector } from "./runtime/use-state-inspector";
 import Toasts from "./notifications/toasts";
 import { useToasts } from "./notifications/use-toasts";
 import { useBuild } from "./build/use-build";
@@ -87,6 +89,7 @@ function EditorBody({ path }: Props) {
     const [usageTarget, setUsageTarget] = useState<UsageTarget | null>(null);
     const sync = useSyncServer(path);
     const runtime = useRuntimeBridge();
+    const stateInspector = useStateInspector();
     const toolchain = useRokit(path);
     const toasts = useToasts();
     const { build } = useBuild(path, sync.backend, toasts);
@@ -530,6 +533,16 @@ function EditorBody({ path }: Props) {
                         onClear={runtime.clear}
                         resolve={resolve}
                         onOpen={openLocation}
+                    />
+                );
+            case "state":
+                return (
+                    <StatePanel
+                        watches={stateInspector.watches}
+                        running={runtime.running}
+                        port={runtime.port}
+                        playtest={runtime.playtest}
+                        onClear={stateInspector.clear}
                     />
                 );
             case "terminal":
