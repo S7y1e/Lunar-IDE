@@ -44,7 +44,9 @@ export function useStateInspector() {
 
     useEffect(() => {
         const unlisten = listen<StatePayload>("runtime://message", (event) => {
-            if (event.payload.running === false) setWatches(new Map());
+            // Don't auto-clear on running:false — the plugin's run flag flaps
+            // during a Play Solo, which would wipe watches mid-test. Watches just
+            // update by name; the Clear button handles stale ones.
             const w = event.payload.state?.watches;
             if (w && w.length) apply(w);
         });

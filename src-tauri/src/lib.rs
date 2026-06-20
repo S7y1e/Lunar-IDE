@@ -1,6 +1,7 @@
 mod process_guard;
 mod project;
 mod runtime;
+mod studio;
 mod terminal;
 
 use tauri::Manager;
@@ -25,15 +26,18 @@ pub fn run() {
             project::project_close,
             project::project_snapshot,
             project::project_data_model,
+            project::project_write_sourcemap,
             project::project_run_test,
             project::dependencies::project_dependencies,
             project::events::project_events,
             project::search::project_search,
+            project::todos::project_todos,
             project::callgraph::project_callers,
             project::callgraph::project_callees,
             project::index::project_symbols,
             project::index::project_member_usages,
-            runtime::runtime_bridge_status
+            runtime::runtime_bridge_status,
+            studio::studio_play
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

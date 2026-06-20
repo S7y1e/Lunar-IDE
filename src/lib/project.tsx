@@ -88,6 +88,18 @@ export function memberUsages(
     return invoke("project_member_usages", { fromFile, receiver, member });
 }
 
+export type TodoItem = {
+    tag: string;
+    file: string;
+    line: number;
+    column: number;
+    text: string;
+};
+
+export function projectTodos(): Promise<TodoItem[]> {
+    return invoke("project_todos");
+}
+
 export function openProject(root: string): Promise<ProjectSnapshot> {
     return invoke("project_open", { root });
 }

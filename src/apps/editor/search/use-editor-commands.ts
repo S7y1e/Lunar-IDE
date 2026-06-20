@@ -52,6 +52,7 @@ export function useEditorCommands(d: Deps): Command[] {
             { id: "runtime.clear", title: "Runtime: Clear output", run: d.clearRuntime },
             { id: "search.everywhere", title: "Search Everywhere", hint: "double-shift", run: d.openPalette },
             { id: "search.find", title: "Search: Find in Files", run: () => d.showView("search") },
+            { id: "view.todo", title: "Go to: TODO", run: () => d.showView("todo") },
             {
                 id: "refactor.renameModule",
                 title: "Refactor: Rename module…",

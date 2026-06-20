@@ -9,6 +9,8 @@ pub mod dependencies;
 pub mod events;
 pub mod index;
 pub mod search;
+pub mod sourcemap;
+pub mod todos;
 mod event_ctx;
 mod event_scan;
 mod lex_util;
@@ -162,9 +164,25 @@ pub fn project_snapshot(store: State<'_, ProjectStore>) -> Option<ProjectSnapsho
 
 #[tauri::command]
 pub fn project_data_model(store: State<'_, ProjectStore>) -> Option<DataModelNode> {
-    let root = store.0.lock().unwrap().as_ref().map(|model| model.root.clone())?;
-    let text = std::fs::read_to_string(root.join(SOURCEMAP_FILE)).ok()?;
-    serde_json::from_str(&text).ok()
+    let (root, project_file) = {
+        let guard = store.0.lock().unwrap();
+        let m = guard.as_ref()?;
+        (m.root.clone(), m.project_file.clone())
+    };
+    sourcemap::generate(&root, &project_file)
+}
+
+#[tauri::command]
+pub fn project_write_sourcemap(store: State<'_, ProjectStore>) -> Result<(), String> {
+    let (root, project_file) = {
+        let guard = store.0.lock().unwrap();
+        let m = guard.as_ref().ok_or("No project open")?;
+        (m.root.clone(), m.project_file.clone())
+    };
+    let node = sourcemap::generate(&root, &project_file)
+        .ok_or("Failed to generate sourcemap")?;
+    let json = serde_json::to_string_pretty(&node).map_err(|e| e.to_string())?;
+    std::fs::write(root.join(SOURCEMAP_FILE), json).map_err(|e| e.to_string())
 }
 
 #[derive(Debug, Clone, Serialize)]

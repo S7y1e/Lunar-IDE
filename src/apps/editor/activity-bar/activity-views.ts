@@ -14,11 +14,13 @@ import {
     VscListSelection,
     VscTerminal,
     VscDatabase,
+    VscChecklist,
 } from "react-icons/vsc";
 
 export type ActivityViewId =
     | "project"
     | "search"
+    | "todo"
     | "structure"
     | "datamodel"
     | "deps"
@@ -48,6 +50,11 @@ export const ACTIVITY_VIEWS: ActivityView[] = [
         id: "search",
         label: "Search",
         icon: VscSearch,
+    },
+    {
+        id: "todo",
+        label: "TODO",
+        icon: VscChecklist,
     },
     {
         id: "structure",

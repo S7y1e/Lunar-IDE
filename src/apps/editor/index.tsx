@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, type ReactNode, type PointerEvent } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import * as monaco from "monaco-editor";
 import styles from "./editor.module.scss";
 import { useLayout } from "./layout/use-layout";
@@ -11,7 +12,6 @@ import EditorTabs from "./code-editor/editor-tabs";
 import EditorPane from "./code-editor/editor-pane";
 import { useOpenFiles } from "./code-editor/use-open-files";
 import { useLuauLsp } from "./code-editor/luau-lsp/use-luau-lsp";
-import { useSourcemap } from "./code-editor/luau-lsp/use-sourcemap";
 import { useEditorNavigation } from "./code-editor/use-editor-navigation";
 import { useUnsavedFiles } from "./code-editor/use-unsaved-files";
 import { useWindowClose } from "./code-editor/use-window-close";
@@ -66,12 +66,6 @@ function EditorBody({ path }: Props) {
     const { test } = useTest(toasts);
     const project = useProject();
 
-    // Surface sourcemap failures — without it, DataModel and runtime remap break.
-    const sourcemapToast = useRef<number | null>(null);
-    useSourcemap(path, (detail) => {
-        if (sourcemapToast.current !== null) toasts.dismiss(sourcemapToast.current);
-        sourcemapToast.current = toasts.push("error", "Sourcemap generation failed", detail);
-    });
     useLuauLsp(path);
 
     const {
@@ -120,6 +114,11 @@ function EditorBody({ path }: Props) {
     const { dirtyFiles, handleDirtyChange, saveAll } = useUnsavedFiles();
     useWindowClose(saveAll, sync.stop);
 
+    const studioPlay = (stop: boolean) =>
+        invoke("studio_play", { stop }).catch((e) =>
+            toasts.push("error", stop ? "Stop failed" : "Play failed", String(e)),
+        );
+
     const renderTool = (id: ToolId): ReactNode => (
         <ToolWindow
             id={id}
@@ -138,6 +137,7 @@ function EditorBody({ path }: Props) {
             usageTarget={nav.usageTarget}
             renameNode={renameNode}
             onToggleTerminal={() => layout.toggle("terminal")}
+            onStudioPlay={studioPlay}
         />
     );
 

@@ -7,6 +7,8 @@ export type RuntimeMessage = { text: string; type: RuntimeLevel; time: number };
 type RuntimeStatus = { running: boolean; port: number };
 
 const MAX_MESSAGES = 1000;
+// How long to keep showing "in play-test" after the last running:true ping.
+const PLAYTEST_TTL = 2000;
 
 export function useRuntimeBridge() {
     const [messages, setMessages] = useState<RuntimeMessage[]>([]);
@@ -14,8 +16,12 @@ export function useRuntimeBridge() {
         running: false,
         port: 34900,
     });
-    // Whether Studio is currently in a play-test (reported by the plugin).
+    // Whether Studio is currently in a play-test. The plugin reads this from the
+    // edit context, where it's unstable during a Play Solo (flaps true/false), so
+    // we treat `running:true` as a heartbeat: stay in play-test while pings keep
+    // arriving, and only fall back to idle once they stop for PLAYTEST_TTL.
     const [playtest, setPlaytest] = useState(false);
+    const playtestTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Studio can emit a burst of lines on play-test start; buffer and flush on a
     // timer so a burst costs one render instead of hundreds (mirrors the sync log).
@@ -41,8 +47,15 @@ export function useRuntimeBridge() {
         const unlistenMsg = listen<{ messages?: RuntimeMessage[]; running?: boolean }>(
             "runtime://message",
             (event) => {
-                if (typeof event.payload.running === "boolean") {
-                    setPlaytest(event.payload.running);
+                // Only `true` pings matter; absence of them (not an explicit
+                // `false`) is what means the play-test stopped.
+                if (event.payload.running === true) {
+                    setPlaytest(true);
+                    if (playtestTimer.current) clearTimeout(playtestTimer.current);
+                    playtestTimer.current = setTimeout(
+                        () => setPlaytest(false),
+                        PLAYTEST_TTL,
+                    );
                 }
                 push(event.payload.messages ?? []);
             }
@@ -51,6 +64,7 @@ export function useRuntimeBridge() {
         return () => {
             unlistenMsg.then((fn) => fn());
             if (timerRef.current !== null) clearTimeout(timerRef.current);
+            if (playtestTimer.current !== null) clearTimeout(playtestTimer.current);
         };
     }, []);
 

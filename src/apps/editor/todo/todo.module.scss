@@ -1,0 +1,123 @@
+@use "../styles/vars" as *;
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: $surface;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 35px;
+    padding: 0 12px;
+    border-bottom: 1px solid $divider;
+    color: $text;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.count {
+    margin-left: auto;
+    color: $muted;
+    font-weight: 400;
+}
+
+.empty {
+    padding: 16px 12px;
+    color: $muted;
+    font-size: 12px;
+}
+
+.body {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.group {
+    margin-bottom: 4px;
+}
+
+.fileHead {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: $text;
+}
+
+.fileName {
+    font-weight: 600;
+}
+
+.filePath {
+    flex: 1;
+    min-width: 0;
+    color: $muted;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fileCount {
+    color: $muted;
+    font-size: 11px;
+}
+
+.row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    width: 100%;
+    padding: 2px 12px 2px 22px;
+    border: none;
+    background: transparent;
+    color: $text;
+    text-align: left;
+    cursor: pointer;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+
+    &:hover {
+        background: $hover;
+    }
+}
+
+.tag {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 3px;
+    letter-spacing: 0.3px;
+}
+
+.tagTodo  { background: #1e4a8a; color: #7db8f7; }
+.tagFixme { background: #6b1515; color: #f78c8c; }
+.tagHack  { background: #5c3b00; color: #f7c27d; }
+.tagNote  { background: #1b4a2e; color: #7df7a8; }
+.tagXxx   { background: #4a1a4a; color: #e07de0; }
+
+.lineNum {
+    color: $muted;
+    min-width: 28px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+
+.text {
+    flex: 1;
+    min-width: 0;
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: $muted;
+}
+

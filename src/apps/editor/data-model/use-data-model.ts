@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { watch, type UnwatchFn } from "@tauri-apps/plugin-fs";
+import { invoke } from "@tauri-apps/api/core";
 import { getProjectDataModel, type DataModelNode } from "../../../lib/project";
+
+const WATCHED_EXTS = [".luau", ".lua", ".json", ".toml"];
+
+function isRelevant(path: string): boolean {
+    return WATCHED_EXTS.some((ext) => path.endsWith(ext));
+}
 
 export function useDataModel(rootPath: string) {
     const [tree, setTree] = useState<DataModelNode | null>(null);
@@ -16,6 +23,7 @@ export function useDataModel(rootPath: string) {
                     if (!active) return;
                     setTree(next);
                     setLoading(false);
+                    invoke("project_write_sourcemap").catch(() => {});
                 })
                 .catch(() => active && setLoading(false));
         };
@@ -27,16 +35,14 @@ export function useDataModel(rootPath: string) {
                 const fn = await watch(
                     rootPath,
                     (event) => {
-                        if (event.paths.some((p) => p.endsWith("sourcemap.json"))) {
-                            refresh();
-                        }
+                        if (event.paths.some(isRelevant)) refresh();
                     },
-                    { recursive: false, delayMs: 250 },
+                    { recursive: true, delayMs: 300 },
                 );
                 if (active) unwatch = fn;
                 else fn();
             } catch (e) {
-                console.warn("[datamodel] sourcemap watch failed", e);
+                console.warn("[datamodel] watch failed", e);
             }
         })();
 

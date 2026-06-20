@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { type ToolId } from "./layout-types";
 import Sidebar from "../file-tree/sidebar";
 import FindPanel from "../find/find-panel";
+import TodoPanel from "../todo/todo-panel";
 import StructurePanel from "../structure/structure-panel";
 import SyncPanel from "../sync/sync-panel";
 import ToolchainPanel from "../toolchain/toolchain-panel";
@@ -37,6 +38,7 @@ type Props = {
     usageTarget: UsageTarget | null;
     renameNode: (node: FileNode, newName: string) => Promise<string | null>;
     onToggleTerminal: () => void;
+    onStudioPlay: (stop: boolean) => void;
 };
 
 // Render a tool window's content by id — keyed by tool so any tool can dock anywhere.
@@ -44,6 +46,8 @@ export default function ToolWindow(p: Props): ReactNode {
     switch (p.id) {
         case "search":
             return <FindPanel root={p.path} onOpenAt={p.openFileAt} />;
+        case "todo":
+            return <TodoPanel root={p.path} onOpenAt={p.openFileAt} />;
         case "structure":
             return <StructurePanel activeFile={p.activeFile} onGoTo={p.goToLine} />;
         case "sync":
@@ -95,6 +99,7 @@ export default function ToolWindow(p: Props): ReactNode {
                     port={p.runtime.port}
                     playtest={p.runtime.playtest}
                     onClear={p.runtime.clear}
+                    onPlay={p.onStudioPlay}
                     resolve={p.resolve}
                     onOpen={p.openLocation}
                 />

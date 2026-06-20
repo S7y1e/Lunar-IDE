@@ -158,6 +158,7 @@ const layoutFor = (name: string, opts: NewProjectOptions): Layout => {
                 "src/starterGui",
                 "src/starterPack",
                 "src/character",
+                ...(opts.wally ? ["Packages"] : []),
             ],
             files: {
                 "src/shared/Hello.luau": 'return "Hello from Lunar!"\n',
@@ -180,7 +181,7 @@ const layoutFor = (name: string, opts: NewProjectOptions): Layout => {
                 StarterPlayerScripts: { Client: { $path: "src/client" } },
             },
         },
-        dirs: [],
+        dirs: opts.wally ? ["Packages"] : [],
         files: {
             "src/shared/Hello.luau": 'return "Hello from Lunar!"\n',
             "src/server/init.server.luau": 'print("Server started")\n',

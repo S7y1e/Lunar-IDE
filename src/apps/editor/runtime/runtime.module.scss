@@ -30,6 +30,28 @@
     gap: 8px;
 }
 
+.playBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 9px;
+    border: none;
+    border-radius: 5px;
+    background: $success;
+    color: $text-bright;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+        filter: brightness(1.1);
+    }
+}
+
+.stopBtn {
+    background: $danger;
+}
+
 .chip {
     padding: 1px 7px;
     border-radius: 999px;
@@ -66,6 +88,65 @@
         background: $hover;
         color: $text;
     }
+}
+
+.filterBar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-bottom: 1px solid $divider;
+}
+
+.filterInput {
+    flex: 1;
+    min-width: 0;
+    padding: 3px 8px;
+    border: 1px solid $divider;
+    border-radius: 5px;
+    background: $surface;
+    color: $text;
+    font-size: 11px;
+
+    &::placeholder {
+        color: $muted;
+    }
+    &:focus {
+        outline: none;
+        border-color: $focus;
+    }
+}
+
+.filterToggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    padding: 3px 8px;
+    border: 1px solid $divider;
+    border-radius: 5px;
+    background: transparent;
+    color: $muted;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+        background: $hover;
+        color: $text;
+    }
+
+    &.active {
+        background: $accent;
+        border-color: $accent;
+        color: $text-bright;
+    }
+}
+
+.hiddenCount {
+    flex-shrink: 0;
+    color: $muted;
+    font-size: 10px;
 }
 
 .logs {
