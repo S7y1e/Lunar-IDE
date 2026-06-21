@@ -5,9 +5,11 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, State};
 
 pub mod callgraph;
+pub mod client_agent;
 pub mod dependencies;
 pub mod events;
 pub mod index;
+pub mod logpoints;
 pub mod search;
 pub mod sourcemap;
 pub mod todos;

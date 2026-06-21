@@ -9,8 +9,6 @@ use super::dependencies::{collect_locals, index_maps, is_vendored};
 use super::luau_lex::lex;
 use super::{DataModelNode, ProjectStore};
 
-const SOURCEMAP_FILE: &str = "sourcemap.json";
-
 const SKIP_DIRS: &[&str] = &["node_modules", "target", "dist", "build"];
 const SCRIPT_EXT: [&str; 2] = [".luau", ".lua"];
 const MAX: usize = 1000;
@@ -168,14 +166,11 @@ pub fn project_member_usages(
     receiver: String,
     member: String,
 ) -> Vec<Usage> {
-    let root = match store.0.lock().unwrap().as_ref().map(|m| m.root.clone()) {
-        Some(r) => r,
+    let (root, project_file) = match store.0.lock().unwrap().as_ref() {
+        Some(m) => (m.root.clone(), m.project_file.clone()),
         None => return vec![],
     };
-    let tree: DataModelNode = match std::fs::read_to_string(root.join(SOURCEMAP_FILE))
-        .ok()
-        .and_then(|t| serde_json::from_str(&t).ok())
-    {
+    let tree: DataModelNode = match super::sourcemap::generate(&root, &project_file) {
         Some(t) => t,
         None => return vec![],
     };

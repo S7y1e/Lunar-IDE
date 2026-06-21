@@ -198,3 +198,179 @@
     color: $muted;
     font-size: 12px;
 }
+
+.evalBar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-top: 1px solid $divider;
+    background: $bar;
+}
+
+.evalPrompt {
+    color: $muted;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.evalInput {
+    flex: 1;
+    min-width: 0;
+    padding: 3px 6px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: $text;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+
+    &:focus {
+        outline: none;
+        border-color: $focus;
+        background: $surface;
+    }
+
+    &::placeholder {
+        color: $muted;
+    }
+
+    &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+}
+
+// Error card (6.1 — grouped stack trace with source context)
+.errorCard {
+    margin: 4px 0;
+    border: 1px solid rgba(255, 80, 80, 0.25);
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(255, 60, 60, 0.06);
+}
+
+.errorCardHeader {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 5px 8px;
+    border: none;
+    background: transparent;
+    color: $danger;
+    text-align: left;
+    cursor: pointer;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+
+    &:hover {
+        background: rgba(255, 60, 60, 0.08);
+    }
+}
+
+.errorIcon {
+    flex-shrink: 0;
+    font-size: 10px;
+    opacity: 0.7;
+}
+
+.errorMessage {
+    flex: 1;
+    min-width: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.errorBody {
+    border-top: 1px solid rgba(255, 80, 80, 0.15);
+}
+
+// Source context block
+.sourceCtx {
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255, 80, 80, 0.15);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+}
+
+.ctxLine {
+    display: flex;
+    gap: 8px;
+    padding: 0 8px;
+    line-height: 1.6;
+    color: $muted;
+
+    &.ctxTarget {
+        background: rgba(255, 60, 60, 0.12);
+        color: $text;
+    }
+}
+
+.ctxNum {
+    flex-shrink: 0;
+    min-width: 28px;
+    text-align: right;
+    color: $muted;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.6;
+}
+
+.ctxText {
+    flex: 1;
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+// Stack frames
+.stackFrames {
+    padding: 4px 0;
+}
+
+.frame {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    padding: 1px 8px;
+    font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    color: $muted;
+}
+
+.frameLink {
+    cursor: pointer;
+    &:hover {
+        background: $hover;
+        color: $text;
+    }
+}
+
+.frameUnresolved {
+    opacity: 0.45;
+    cursor: help;
+}
+
+.frameIndex {
+    flex-shrink: 0;
+    min-width: 16px;
+    text-align: right;
+    color: $muted;
+    opacity: 0.5;
+    font-size: 10px;
+}
+
+.framePath {
+    color: $focus;
+}
+
+.frameLine {
+    color: $muted;
+}
+
+.frameLabel {
+    color: $muted;
+    font-style: italic;
+    font-size: 10px;
+}

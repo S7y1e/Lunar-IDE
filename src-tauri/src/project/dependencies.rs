@@ -7,7 +7,6 @@ use tauri::State;
 use super::luau_lex::{lex, parse_chain, ChainArg, Tok};
 use super::{DataModelNode, ProjectStore};
 
-const SOURCEMAP_FILE: &str = "sourcemap.json";
 const SCRIPT_EXT: [&str; 2] = [".luau", ".lua"];
 const VENDORED: [&str; 5] = ["Packages", "ServerPackages", "DevPackages", "_Index", "node_modules"];
 
@@ -35,9 +34,15 @@ pub struct DependencyGraph {
 
 #[tauri::command]
 pub fn project_dependencies(store: State<'_, ProjectStore>) -> Option<DependencyGraph> {
-    let root = store.0.lock().unwrap().as_ref().map(|m| m.root.clone())?;
-    let text = std::fs::read_to_string(root.join(SOURCEMAP_FILE)).ok()?;
-    let tree: DataModelNode = serde_json::from_str(&text).ok()?;
+    // Generate the model in-memory rather than reading sourcemap.json off disk:
+    // the disk file is written lazily by the DataModel watcher, so reading it
+    // here raced the write and left the graph empty on a fresh open.
+    let (root, project_file) = {
+        let guard = store.0.lock().unwrap();
+        let m = guard.as_ref()?;
+        (m.root.clone(), m.project_file.clone())
+    };
+    let tree = super::sourcemap::generate(&root, &project_file)?;
     Some(build(&root, &tree))
 }
 

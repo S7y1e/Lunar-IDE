@@ -52,6 +52,10 @@ type Props = {
     onDirtyChange: (path: string, dirty: boolean) => void;
     onCursorChange: (pos: CursorPosition | null) => void;
     onReady?: (editor: monaco.editor.IStandaloneCodeEditor) => void;
+    onAddWatch?: (expr: string) => void;
+    onAddLogpoint?: (line: number, expr: string) => void;
+    logpointLines?: number[];
+    onRemoveLogpointLine?: (line: number) => void;
 };
 
 export default function EditorPane({
@@ -59,6 +63,10 @@ export default function EditorPane({
     onDirtyChange,
     onCursorChange,
     onReady,
+    onAddWatch,
+    onAddLogpoint,
+    logpointLines,
+    onRemoveLogpointLine,
 }: Props) {
     const {
         content,
@@ -83,6 +91,47 @@ export default function EditorPane({
     // the first file ever opened and writes every Ctrl+S into that file.
     const saveRef = useRef(save);
     saveRef.current = save;
+    const onAddWatchRef = useRef(onAddWatch);
+    onAddWatchRef.current = onAddWatch;
+    const onAddLogpointRef = useRef(onAddLogpoint);
+    onAddLogpointRef.current = onAddLogpoint;
+    const onRemoveLogpointLineRef = useRef(onRemoveLogpointLine);
+    onRemoveLogpointLineRef.current = onRemoveLogpointLine;
+    const logpointLinesRef = useRef(logpointLines);
+    logpointLinesRef.current = logpointLines;
+    const lpDecoRef = useRef<string[]>([]);
+
+    // Paint a glyph in the gutter for each logpoint line in the active file.
+    const applyLogpointGlyphs = () => {
+        const editor = editorRef.current;
+        if (!editor) return;
+        const decos = (logpointLinesRef.current ?? []).map((line) => ({
+            range: new monaco.Range(line, 1, line, 1),
+            options: {
+                glyphMarginClassName: "lunar-logpoint-glyph",
+                glyphMarginHoverMessage: { value: "Logpoint — click to remove" },
+            },
+        }));
+        lpDecoRef.current = editor.deltaDecorations(lpDecoRef.current, decos);
+    };
+
+    useEffect(applyLogpointGlyphs, [logpointLines, path]);
+
+    // Injected logpoint lines live on disk (so rojo syncs them) but are folded
+    // out of view here, so the user never sees the print noise.
+    useEffect(() => {
+        const editor = editorRef.current;
+        const model = editor?.getModel();
+        if (!editor || !model) return;
+        const ranges: monaco.Range[] = [];
+        for (let ln = 1; ln <= model.getLineCount(); ln++) {
+            if (model.getLineContent(ln).includes("--[[lunar:lp]]")) {
+                ranges.push(new monaco.Range(ln, 1, ln, 1));
+            }
+        }
+        (editor as unknown as { setHiddenAreas?: (r: monaco.IRange[]) => void })
+            .setHiddenAreas?.(ranges);
+    }, [content, path]);
 
     // Single source of truth for the dirty indicator: buffer vs. what's on disk.
     // This also self-corrects when the file is reloaded after an external
@@ -108,6 +157,16 @@ export default function EditorPane({
     function handleMount(editor: monaco.editor.IStandaloneCodeEditor) {
         onReady?.(editor);
         editorRef.current = editor;
+        applyLogpointGlyphs();
+
+        // Click a logpoint glyph in the gutter to remove that logpoint.
+        editor.onMouseDown((e) => {
+            if (e.target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) return;
+            const line = e.target.position?.lineNumber;
+            if (line && logpointLinesRef.current?.includes(line)) {
+                onRemoveLogpointLineRef.current?.(line);
+            }
+        });
         readSettings().then((values) => {
             autocompleteEndEnabled.current =
                 values["luau-lsp.completion.autocompleteEnd"] === true;
@@ -129,6 +188,42 @@ export default function EditorPane({
             keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
             run: () => {
                 saveRef.current().catch((e) => console.error("save failed", e));
+            },
+        });
+
+        // Pull the expression under the cursor: selection if any, else the word.
+        const exprAtCursor = (ed: monaco.editor.ICodeEditor): string => {
+            const model = ed.getModel();
+            const sel = ed.getSelection();
+            if (!model) return "";
+            const selected = sel ? model.getValueInRange(sel).trim() : "";
+            if (selected) return selected;
+            const pos = ed.getPosition();
+            return (pos && model.getWordAtPosition(pos)?.word) || "";
+        };
+
+        // Right-click → Add to Watch: live value in the Watches tool window.
+        editor.addAction({
+            id: "lunar.addWatch",
+            label: "Add to Watch",
+            contextMenuGroupId: "navigation",
+            contextMenuOrder: 1.5,
+            run: (ed) => {
+                const expr = exprAtCursor(ed);
+                if (expr) onAddWatchRef.current?.(expr);
+            },
+        });
+
+        // Right-click → Add Logpoint: print the expression where the line runs.
+        editor.addAction({
+            id: "lunar.addLogpoint",
+            label: "Add Logpoint",
+            contextMenuGroupId: "navigation",
+            contextMenuOrder: 1.6,
+            run: (ed) => {
+                const expr = exprAtCursor(ed);
+                const line = ed.getPosition()?.lineNumber;
+                if (expr && line) onAddLogpointRef.current?.(line, expr);
             },
         });
 

@@ -6,6 +6,9 @@ import { getProjectDataModel, type DataModelNode } from "../../../lib/project";
 const WATCHED_EXTS = [".luau", ".lua", ".json", ".toml"];
 
 function isRelevant(path: string): boolean {
+    // Never react to our own sourcemap write, or we'd loop forever:
+    // write sourcemap.json → watcher fires → regenerate → write → …
+    if (path.replace(/\\/g, "/").endsWith("sourcemap.json")) return false;
     return WATCHED_EXTS.some((ext) => path.endsWith(ext));
 }
 

@@ -100,6 +100,33 @@ export function projectTodos(): Promise<TodoItem[]> {
     return invoke("project_todos");
 }
 
+export function runtimeEnqueue(command: object): Promise<void> {
+    return invoke("runtime_enqueue", { command: JSON.stringify(command) });
+}
+
+export type LogpointArg = {
+    file: string;
+    line: number;
+    expr: string;
+    includeStack: boolean;
+};
+
+export function logpointsArm(points: LogpointArg[]): Promise<void> {
+    return invoke("logpoints_arm", { points });
+}
+
+export function logpointsDisarm(): Promise<void> {
+    return invoke("logpoints_disarm");
+}
+
+export function clientAgentInstall(): Promise<void> {
+    return invoke("client_agent_install");
+}
+
+export function clientAgentRemove(): Promise<void> {
+    return invoke("client_agent_remove");
+}
+
 export function openProject(root: string): Promise<ProjectSnapshot> {
     return invoke("project_open", { root });
 }

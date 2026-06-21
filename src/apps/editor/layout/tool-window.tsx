@@ -14,11 +14,15 @@ import UsagesPanel, { type UsageTarget } from "../usages/usages-panel";
 import EventsPanel from "../events/events-panel";
 import RuntimePanel from "../runtime/runtime-panel";
 import StatePanel from "../runtime/state-panel";
+import EvalWatchPanel from "../runtime/eval-watch-panel";
+import LogpointPanel from "../runtime/logpoint-panel";
 import TerminalView from "../terminal/terminal-view";
 import { type useSyncServer } from "../sync/use-sync-server";
 import { type useRokit } from "../toolchain/use-rokit";
 import { type useRuntimeBridge } from "../runtime/use-runtime-bridge";
 import { type useStateInspector } from "../runtime/use-state-inspector";
+import { type useEvalWatches } from "../runtime/use-eval-watches";
+import { type useLogpoints } from "../runtime/use-logpoints";
 import { type FileNode } from "../../../lib/filesystem";
 
 type Props = {
@@ -34,6 +38,8 @@ type Props = {
     toolchain: ReturnType<typeof useRokit>;
     runtime: ReturnType<typeof useRuntimeBridge>;
     stateInspector: ReturnType<typeof useStateInspector>;
+    evalWatches: ReturnType<typeof useEvalWatches>;
+    logpoints: ReturnType<typeof useLogpoints>;
     callTarget: CallTarget | null;
     usageTarget: UsageTarget | null;
     renameNode: (node: FileNode, newName: string) => Promise<string | null>;
@@ -102,6 +108,8 @@ export default function ToolWindow(p: Props): ReactNode {
                     onPlay={p.onStudioPlay}
                     resolve={p.resolve}
                     onOpen={p.openLocation}
+                    onEcho={p.runtime.echo}
+                    root={p.path}
                 />
             );
         case "state":
@@ -114,6 +122,10 @@ export default function ToolWindow(p: Props): ReactNode {
                     onClear={p.stateInspector.clear}
                 />
             );
+        case "watches":
+            return <EvalWatchPanel watcher={p.evalWatches} running={p.runtime.running} />;
+        case "logpoints":
+            return <LogpointPanel logpoints={p.logpoints} onOpenAt={p.openFileAt} />;
         case "terminal":
             return <TerminalView cwd={p.path} onClose={p.onToggleTerminal} />;
         default:

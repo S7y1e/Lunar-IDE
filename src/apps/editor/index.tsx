@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, type ReactNode, type PointerEvent } from "react";
+import { useState, useRef, useMemo, useEffect, type ReactNode, type PointerEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import * as monaco from "monaco-editor";
 import styles from "./editor.module.scss";
@@ -19,6 +19,9 @@ import { useRenameNode } from "./code-editor/use-rename-node";
 import { useSyncServer } from "./sync/use-sync-server";
 import { useRuntimeBridge } from "./runtime/use-runtime-bridge";
 import { useStateInspector } from "./runtime/use-state-inspector";
+import { useEvalWatches } from "./runtime/use-eval-watches";
+import { useLogpoints } from "./runtime/use-logpoints";
+import { toRelative } from "./data-model/instance-path";
 import { makeResolver } from "./runtime/resolve-instance";
 import { extractDiagnostics } from "./runtime/diagnostics";
 import { useRuntimeMarkers } from "./runtime/use-runtime-markers";
@@ -60,11 +63,23 @@ function EditorBody({ path }: Props) {
     const sync = useSyncServer(path);
     const runtime = useRuntimeBridge();
     const stateInspector = useStateInspector();
+    const evalWatches = useEvalWatches();
+    const logpoints = useLogpoints();
     const toolchain = useRokit(path);
     const toasts = useToasts();
     const { build } = useBuild(path, sync.backend, toasts);
     const { test } = useTest(toasts);
     const project = useProject();
+
+    // Strip any logpoint prints / client agent left in source by a previous
+    // session or crash, once the project is open. Keeps the tree clean.
+    useEffect(() => {
+        if (project) {
+            logpoints.disarm().catch(() => {});
+            invoke("client_agent_remove").catch(() => {});
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [project?.root]);
 
     useLuauLsp(path);
 
@@ -76,6 +91,20 @@ function EditorBody({ path }: Props) {
     const { tree } = useDataModel(path);
     const resolve = useMemo(() => makeResolver(tree), [tree]);
     const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+
+    // Logpoint glyphs for the active file.
+    const activeRel = activeFile ? toRelative(path, activeFile) : null;
+    const logpointLines = useMemo(
+        () =>
+            activeRel
+                ? logpoints.points.filter((p) => p.file === activeRel).map((p) => p.line)
+                : [],
+        [activeRel, logpoints.points],
+    );
+    const removeLogpointLine = (line: number) => {
+        const p = logpoints.points.find((q) => q.file === activeRel && q.line === line);
+        if (p) logpoints.remove(p.id);
+    };
 
     const nav = useEditorNavigation({
         path, activeFile, resolve, openFile, editorRef, showView, toasts,
@@ -114,10 +143,26 @@ function EditorBody({ path }: Props) {
     const { dirtyFiles, handleDirtyChange, saveAll } = useUnsavedFiles();
     useWindowClose(saveAll, sync.stop);
 
-    const studioPlay = (stop: boolean) =>
-        invoke("studio_play", { stop }).catch((e) =>
-            toasts.push("error", stop ? "Stop failed" : "Play failed", String(e)),
-        );
+    // Logpoints arm/disarm automatically around a play-test: inject the prints
+    // right before Play, strip them on Stop — so the user never arms by hand and
+    // the source stays clean except while actually running.
+    const studioPlay = async (stop: boolean) => {
+        try {
+            if (!stop) {
+                if (logpoints.points.length) await logpoints.arm();
+                // Plant the client log agent so the play-test client streams its
+                // own output (the plugin can't see the client VM). Best-effort.
+                await invoke("client_agent_install").catch(() => {});
+            }
+            await invoke("studio_play", { stop });
+            if (stop) {
+                if (logpoints.armed) await logpoints.disarm();
+                await invoke("client_agent_remove").catch(() => {});
+            }
+        } catch (e) {
+            toasts.push("error", stop ? "Stop failed" : "Play failed", String(e));
+        }
+    };
 
     const renderTool = (id: ToolId): ReactNode => (
         <ToolWindow
@@ -133,6 +178,8 @@ function EditorBody({ path }: Props) {
             toolchain={toolchain}
             runtime={runtime}
             stateInspector={stateInspector}
+            evalWatches={evalWatches}
+            logpoints={logpoints}
             callTarget={nav.callTarget}
             usageTarget={nav.usageTarget}
             renameNode={renameNode}
@@ -174,6 +221,17 @@ function EditorBody({ path }: Props) {
                                 onDirtyChange={handleDirtyChange}
                                 onCursorChange={setCursor}
                                 onReady={(editor) => (editorRef.current = editor)}
+                                onAddWatch={(expr) => {
+                                    evalWatches.add(expr);
+                                    showView("watches");
+                                }}
+                                onAddLogpoint={(line, expr) => {
+                                    if (!activeFile) return;
+                                    logpoints.add(toRelative(path, activeFile), line, expr);
+                                    showView("logpoints");
+                                }}
+                                logpointLines={logpointLines}
+                                onRemoveLogpointLine={removeLogpointLine}
                             />
                         </div>
                     </>

@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { VscClearAll, VscFilter, VscPlay, VscDebugStop } from "react-icons/vsc";
+import { runtimeEnqueue } from "../../../lib/project";
 import styles from "./runtime.module.scss";
 import { RuntimeMessage } from "./use-runtime-bridge";
 import RuntimeLine from "./runtime-line";
+import ErrorCard from "./error-card";
+import { groupMessages } from "./error-group";
 import { isEngineNoise } from "./runtime-filter";
 
 type Props = {
@@ -14,6 +17,8 @@ type Props = {
     onPlay: (stop: boolean) => void;
     resolve: (dotPath: string) => string | null;
     onOpen: (dotPath: string, line: number) => void;
+    onEcho: (text: string) => void;
+    root: string;
 };
 
 export default function RuntimePanel({
@@ -25,17 +30,36 @@ export default function RuntimePanel({
     onPlay,
     resolve,
     onOpen,
+    onEcho,
+    root,
 }: Props) {
     const [hideNoise, setHideNoise] = useState(true);
     const [filter, setFilter] = useState("");
+    const [evalInput, setEvalInput] = useState("");
+    const evalRef = useRef<HTMLInputElement>(null);
+
+    const submitEval = () => {
+        const code = evalInput.trim();
+        if (!code || !running) return;
+        onEcho(`> ${code}`);
+        runtimeEnqueue({ type: "eval", code }).catch(() => {});
+        setEvalInput("");
+    };
 
     const needle = filter.trim().toLowerCase();
-    const visible = messages.filter((m) => {
-        if (hideNoise && isEngineNoise(m.text)) return false;
-        if (needle && !m.text.toLowerCase().includes(needle)) return false;
-        return true;
-    });
-    const hidden = messages.length - visible.length;
+
+    const filtered = useMemo(
+        () =>
+            messages.filter((m) => {
+                if (hideNoise && isEngineNoise(m.text)) return false;
+                if (needle && !m.text.toLowerCase().includes(needle)) return false;
+                return true;
+            }),
+        [messages, hideNoise, needle],
+    );
+
+    const grouped = useMemo(() => groupMessages(filtered), [filtered]);
+    const hidden = messages.length - filtered.length;
 
     return (
         <div className={styles.runtime}>
@@ -81,20 +105,51 @@ export default function RuntimePanel({
                 {hidden > 0 && <span className={styles.hiddenCount}>{hidden} hidden</span>}
             </div>
 
+            <div className={styles.evalBar}>
+                <span className={styles.evalPrompt}>&gt;</span>
+                <input
+                    ref={evalRef}
+                    className={styles.evalInput}
+                    value={evalInput}
+                    placeholder={running ? "Lua expression…" : "Connect plugin to eval"}
+                    disabled={!running}
+                    spellCheck={false}
+                    onChange={(e) => setEvalInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && submitEval()}
+                />
+            </div>
+
             <div className={styles.logs}>
                 {messages.length === 0 ? (
                     <div className={styles.empty}>
                         No runtime output. Connect the Lunar Studio plugin and run a
                         play-test.
                     </div>
-                ) : visible.length === 0 ? (
+                ) : grouped.length === 0 ? (
                     <div className={styles.empty}>All {messages.length} lines hidden by filter.</div>
                 ) : (
-                    visible.map((message, i) => (
-                        <div key={i} className={`${styles.logLine} ${styles[message.type]}`}>
-                            <RuntimeLine text={message.text} resolve={resolve} onOpen={onOpen} />
-                        </div>
-                    ))
+                    grouped.map((entry, i) =>
+                        entry.kind === "error-group" ? (
+                            <ErrorCard
+                                key={i}
+                                group={entry}
+                                root={root}
+                                resolve={resolve}
+                                onOpen={onOpen}
+                            />
+                        ) : (
+                            <div
+                                key={i}
+                                className={`${styles.logLine} ${styles[entry.type]}`}
+                            >
+                                <RuntimeLine
+                                    text={entry.text}
+                                    resolve={resolve}
+                                    onOpen={onOpen}
+                                />
+                            </div>
+                        ),
+                    )
                 )}
             </div>
         </div>

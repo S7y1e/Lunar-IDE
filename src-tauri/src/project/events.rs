@@ -2,9 +2,7 @@ use serde::Serialize;
 use tauri::State;
 
 use super::event_scan::analyze;
-use super::{DataModelNode, ProjectStore};
-
-const SOURCEMAP_FILE: &str = "sourcemap.json";
+use super::ProjectStore;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,8 +29,11 @@ pub struct EventGraph {
 
 #[tauri::command]
 pub fn project_events(store: State<'_, ProjectStore>) -> Option<EventGraph> {
-    let root = store.0.lock().unwrap().as_ref().map(|m| m.root.clone())?;
-    let text = std::fs::read_to_string(root.join(SOURCEMAP_FILE)).ok()?;
-    let tree: DataModelNode = serde_json::from_str(&text).ok()?;
+    let (root, project_file) = {
+        let guard = store.0.lock().unwrap();
+        let m = guard.as_ref()?;
+        (m.root.clone(), m.project_file.clone())
+    };
+    let tree = super::sourcemap::generate(&root, &project_file)?;
     Some(analyze(&root, &tree))
 }

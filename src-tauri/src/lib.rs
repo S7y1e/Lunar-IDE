@@ -32,11 +32,16 @@ pub fn run() {
             project::events::project_events,
             project::search::project_search,
             project::todos::project_todos,
+            project::logpoints::logpoints_arm,
+            project::logpoints::logpoints_disarm,
+            project::client_agent::client_agent_install,
+            project::client_agent::client_agent_remove,
             project::callgraph::project_callers,
             project::callgraph::project_callees,
             project::index::project_symbols,
             project::index::project_member_usages,
             runtime::runtime_bridge_status,
+            runtime::runtime_enqueue,
             studio::studio_play
         ])
         .setup(|app| {

@@ -12,7 +12,7 @@ export const EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions 
     smoothScrolling: true,
     lineNumbersMinChars: 4,
     lineDecorationsWidth: 25,
-    glyphMargin: false,
+    glyphMargin: true,
     scrollBeyondLastLine: false,
     padding: { top: 6 },
     scrollbar: {

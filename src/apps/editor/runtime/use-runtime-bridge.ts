@@ -70,11 +70,17 @@ export function useRuntimeBridge() {
 
     const clear = () => setMessages([]);
 
+    // Locally echo a line into the log (e.g. the eval input the user typed), so
+    // the runtime panel reads like a REPL even before the round-trip returns.
+    const echo = (text: string) =>
+        push([{ text, type: "info", time: Date.now() }]);
+
     return {
         messages,
         running: status.running,
         port: status.port,
         playtest,
         clear,
+        echo,
     };
 }

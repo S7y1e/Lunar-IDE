@@ -73,6 +73,8 @@ export function useEditorCommands(d: Deps): Command[] {
             { id: "view.events", title: "Go to: Events", run: () => d.showView("events") },
             { id: "view.sync", title: "Go to: Sync", run: () => d.showView("sync") },
             { id: "view.runtime", title: "Go to: Runtime", run: () => d.showView("runtime") },
+            { id: "view.watches", title: "Go to: Watches", run: () => d.showView("watches") },
+            { id: "view.logpoints", title: "Go to: Logpoints", run: () => d.showView("logpoints") },
             { id: "view.toolchain", title: "Go to: Toolchain", run: () => d.showView("toolchain") },
             { id: "settings.open", title: "Settings: Open", run: () => d.setSettingsOpen(true) },
         ],

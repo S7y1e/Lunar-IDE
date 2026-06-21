@@ -130,6 +130,24 @@ fn walk_tree(root: &Path, name: &str, node: &Value) -> DataModelNode {
     DataModelNode { name: name.to_string(), class_name, file_paths: vec![], children }
 }
 
+// The whole app (dependency/event/usage resolution, the DataModel tree, the
+// runtime stack remap) keys instances by source path relative to the project
+// root with forward slashes. The filesystem walk above produces absolute paths,
+// so rewrite them to that canonical form before handing the tree out.
+fn relativize(node: &mut DataModelNode, root: &Path) {
+    for p in node.file_paths.iter_mut() {
+        *p = Path::new(p.as_str())
+            .strip_prefix(root)
+            .map(|r| r.to_path_buf())
+            .unwrap_or_else(|_| Path::new(p.as_str()).to_path_buf())
+            .to_string_lossy()
+            .replace('\\', "/");
+    }
+    for child in &mut node.children {
+        relativize(child, root);
+    }
+}
+
 pub fn generate(root: &Path, project_file: &str) -> Option<DataModelNode> {
     let text = std::fs::read_to_string(root.join(project_file)).ok()?;
     let json: Value = serde_json::from_str(&text).ok()?;
@@ -150,5 +168,7 @@ pub fn generate(root: &Path, project_file: &str) -> Option<DataModelNode> {
         }
     }
 
-    Some(DataModelNode { name, class_name, file_paths: vec![], children })
+    let mut node = DataModelNode { name, class_name, file_paths: vec![], children };
+    relativize(&mut node, root);
+    Some(node)
 }
