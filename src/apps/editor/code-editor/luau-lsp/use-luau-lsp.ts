@@ -4,6 +4,7 @@ import { LuauLspClient } from "./client";
 import { registerLuauLsp } from "./monaco-bridge";
 import { setCurrentLspClient } from "./lsp-registry";
 import { buildConfigRoot } from "./config";
+import { discoverDefinitionFiles } from "./discover-definitions";
 import { pathToUri } from "./uri";
 import { readSettings, subscribeSettings, SettingsValues } from "../../../../lib/settings";
 import { getProjectSnapshot } from "../../../../lib/project";
@@ -35,23 +36,29 @@ export function useLuauLsp(rootPath: string) {
         });
 
         (async () => {
-            const [values, definitions, snapshot] = await Promise.all([
+            const [values, definitions, snapshot, discovered] = await Promise.all([
                 readSettings(),
                 resolveDefinitions(),
                 getProjectSnapshot(),
+                discoverDefinitionFiles(rootPath),
             ]);
             if (stopped) return;
             currentValues = values;
             const projectFile = snapshot?.projectFile;
-            const getConfig = () =>
-                buildConfigRoot(
-                    projectFile
-                        ? {
-                              ...currentValues,
-                              "luau-lsp.sourcemap.rojoProjectFile": projectFile,
-                          }
-                        : currentValues,
-                );
+            const getConfig = () => {
+                const userDefs =
+                    (currentValues["luau-lsp.types.definitionFiles"] as
+                        | Record<string, string>
+                        | undefined) ?? {};
+                return buildConfigRoot({
+                    ...currentValues,
+                    // Discovered defs are a baseline; explicit user entries win.
+                    "luau-lsp.types.definitionFiles": { ...discovered, ...userDefs },
+                    ...(projectFile
+                        ? { "luau-lsp.sourcemap.rojoProjectFile": projectFile }
+                        : {}),
+                });
+            };
             client = new LuauLspClient(
                 pathToUri(rootPath),
                 getConfig,
