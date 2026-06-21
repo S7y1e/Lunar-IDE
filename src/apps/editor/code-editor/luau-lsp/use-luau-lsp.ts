@@ -20,50 +20,53 @@ async function resolveDefinitions(): Promise<string | null> {
     }
 }
 
+// FFlags are process-global and locked at server boot, so a change to any of
+// these requires a full restart — pushing config does nothing.
+const FFLAG_KEYS = [
+    "luau-lsp.fflags.enableByDefault",
+    "luau-lsp.fflags.enableNewSolver",
+    "luau-lsp.fflags.sync",
+    "luau-lsp.fflags.override",
+];
+
+const fflagSignature = (values: SettingsValues): string =>
+    JSON.stringify(FFLAG_KEYS.map((k) => values[k]));
+
 export function useLuauLsp(rootPath: string) {
     useEffect(() => {
         let client: LuauLspClient | null = null;
         let dispose = () => {};
         let stopped = false;
 
-        // Live config: getConfig reads this holder, so settings changes take
-        // effect without restarting the LSP.
+        // Live config: getConfig reads this holder, so most settings changes
+        // take effect without restarting the LSP.
         let currentValues: SettingsValues = {};
+        let loaded = false;
+        let fflagsSig = "";
+        let definitions: string | null = null;
+        let discovered: Record<string, string> = {};
+        let projectFile: string | undefined;
 
-        const unsubscribe = subscribeSettings((values) => {
-            currentValues = values;
-            client?.notifyConfigChanged();
-        });
+        const getConfig = () => {
+            const userDefs =
+                (currentValues["luau-lsp.types.definitionFiles"] as
+                    | Record<string, string>
+                    | undefined) ?? {};
+            return buildConfigRoot({
+                ...currentValues,
+                // Discovered defs are a baseline; explicit user entries win.
+                "luau-lsp.types.definitionFiles": { ...discovered, ...userDefs },
+                ...(projectFile
+                    ? { "luau-lsp.sourcemap.rojoProjectFile": projectFile }
+                    : {}),
+            });
+        };
 
-        (async () => {
-            const [values, definitions, snapshot, discovered] = await Promise.all([
-                readSettings(),
-                resolveDefinitions(),
-                getProjectSnapshot(),
-                discoverDefinitionFiles(rootPath),
-            ]);
+        const spawn = async () => {
+            dispose();
+            await client?.stop().catch(() => {});
             if (stopped) return;
-            currentValues = values;
-            const projectFile = snapshot?.projectFile;
-            const getConfig = () => {
-                const userDefs =
-                    (currentValues["luau-lsp.types.definitionFiles"] as
-                        | Record<string, string>
-                        | undefined) ?? {};
-                return buildConfigRoot({
-                    ...currentValues,
-                    // Discovered defs are a baseline; explicit user entries win.
-                    "luau-lsp.types.definitionFiles": { ...discovered, ...userDefs },
-                    ...(projectFile
-                        ? { "luau-lsp.sourcemap.rojoProjectFile": projectFile }
-                        : {}),
-                });
-            };
-            client = new LuauLspClient(
-                pathToUri(rootPath),
-                getConfig,
-                definitions
-            );
+            client = new LuauLspClient(pathToUri(rootPath), getConfig, definitions);
             dispose = registerLuauLsp(client);
             setCurrentLspClient(client);
             try {
@@ -71,6 +74,35 @@ export function useLuauLsp(rootPath: string) {
             } catch (e) {
                 console.error("[luau-lsp] failed to start", e);
             }
+        };
+
+        const unsubscribe = subscribeSettings((values) => {
+            currentValues = values;
+            if (!loaded) return; // initial spawn (below) will pick these up
+            const sig = fflagSignature(values);
+            if (sig !== fflagsSig) {
+                fflagsSig = sig;
+                spawn();
+            } else {
+                client?.notifyConfigChanged();
+            }
+        });
+
+        (async () => {
+            const [values, defs, snapshot, found] = await Promise.all([
+                readSettings(),
+                resolveDefinitions(),
+                getProjectSnapshot(),
+                discoverDefinitionFiles(rootPath),
+            ]);
+            if (stopped) return;
+            currentValues = values;
+            fflagsSig = fflagSignature(values);
+            definitions = defs;
+            discovered = found;
+            projectFile = snapshot?.projectFile;
+            loaded = true;
+            await spawn();
         })();
 
         return () => {

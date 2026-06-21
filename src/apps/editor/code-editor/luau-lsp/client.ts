@@ -4,6 +4,7 @@ import { resolveSection } from "./config";
 import { uriToPath } from "./uri";
 import { watchWorkspace } from "./file-watcher";
 import { clientCapabilities } from "./client-capabilities";
+import { fflagArgs } from "./fflag-args";
 import {
     LspPosition,
     LspDiagnostic,
@@ -56,6 +57,7 @@ export class LuauLspClient {
         const args = ["lsp", "--stdio"];
         if (this.definitionsPath)
             args.push("--definitions", this.definitionsPath);
+        args.push(...fflagArgs(this.getConfig()));
         console.log("[luau-lsp] spawning sidecar", args);
         await this.conn.start(SIDECAR, args);
         console.log("[luau-lsp] sidecar spawned, sending initialize");

@@ -190,14 +190,15 @@ export const LUAU_SETTINGS: LuauSetting[] = [
     {
         key: "luau-lsp.fflags.enableNewSolver",
         type: "boolean",
-        default: false,
+        default: true,
         description: "Enable the flags required for Luau's new type solver.",
     },
     {
         key: "luau-lsp.fflags.sync",
         type: "boolean",
-        default: true,
-        description: "Sync currently enabled FFlags with Roblox's published FFlags.",
+        default: false,
+        description:
+            "Sync currently enabled FFlags with Roblox's published FFlags. Off by default so it can't clobber the new type solver.",
     },
     {
         key: "luau-lsp.fflags.override",
