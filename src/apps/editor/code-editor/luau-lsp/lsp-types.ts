@@ -43,8 +43,19 @@ export type LspHover = {
 } | null;
 
 export type LspLocation = { uri: string; range: LspRange };
+// Servers may answer go-to-definition with LocationLink instead of Location
+// (luau-lsp does this for requires), which names its fields differently.
+export type LspLocationLink = {
+    targetUri: string;
+    targetRange: LspRange;
+    targetSelectionRange?: LspRange;
+};
 // definition/references can return a single Location, a list, or null.
-export type LspLocationResult = LspLocation | LspLocation[] | null;
+export type LspLocationResult =
+    | LspLocation
+    | LspLocation[]
+    | LspLocationLink[]
+    | null;
 
 export type LspDocumentSymbol = {
     name: string;

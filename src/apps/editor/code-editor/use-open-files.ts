@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { canonicalPath } from "./luau-lsp/uri";
 
 export function useOpenFiles() {
     const [openFiles, setOpenFiles] = useState<string[]>([]);
     const [activeFile, setActiveFile] = useState<string | null>(null);
 
-    const openFile = (path: string) => {
+    const openFile = (rawPath: string) => {
+        const path = canonicalPath(rawPath);
         setOpenFiles((prev) => (prev.includes(path) ? prev : [...prev, path]));
         setActiveFile(path);
     };

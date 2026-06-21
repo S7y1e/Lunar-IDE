@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type RefObject } from "react";
 import { join } from "@tauri-apps/api/path";
 import * as monaco from "monaco-editor";
-import { pathToUri, uriToPath } from "./luau-lsp/uri";
+import { pathToUri, uriToPath, canonicalPath } from "./luau-lsp/uri";
 import { toRelative } from "../data-model/instance-path";
 import { type CallTarget } from "../callhierarchy/call-hierarchy-panel";
 import { type UsageTarget } from "../usages/usages-panel";
@@ -60,7 +60,7 @@ export function useEditorNavigation({
         async (dotPath: string, line: number) => {
             const source = resolve(dotPath);
             if (!source) return;
-            const abs = await join(path, ...source.split("/"));
+            const abs = canonicalPath(await join(path, ...source.split("/")));
             openFile(abs);
             revealLine(pathToUri(abs), line);
         },
@@ -70,7 +70,7 @@ export function useEditorNavigation({
     // Open a project-search hit (relative path + line/column) and jump to it.
     const openFileAt = useCallback(
         async (relFile: string, line: number, column: number) => {
-            const abs = await join(path, ...relFile.split("/"));
+            const abs = canonicalPath(await join(path, ...relFile.split("/")));
             openFile(abs);
             revealLine(pathToUri(abs), line, column);
         },
@@ -113,7 +113,7 @@ export function useEditorNavigation({
     useEffect(() => {
         const opener = monaco.editor.registerEditorOpener({
             openCodeEditor(_source, resource, selectionOrPosition) {
-                const file = uriToPath(resource.toString());
+                const file = canonicalPath(uriToPath(resource.toString()));
                 openFile(file);
                 const line =
                     selectionOrPosition && "lineNumber" in selectionOrPosition

@@ -32,10 +32,18 @@ export function toMonacoLocations(
 ): monaco.languages.Location[] {
     if (!result) return [];
     const list = Array.isArray(result) ? result : [result];
-    return list.map((loc) => ({
-        uri: monaco.Uri.parse(loc.uri),
-        range: toRange(loc.range),
-    }));
+    return list
+        .map((loc) => {
+            // Normalize Location and LocationLink into one shape.
+            const uri = "uri" in loc ? loc.uri : loc.targetUri;
+            const range =
+                "range" in loc
+                    ? loc.range
+                    : loc.targetSelectionRange ?? loc.targetRange;
+            if (!uri || !range) return null;
+            return { uri: monaco.Uri.parse(uri), range: toRange(range) };
+        })
+        .filter((l): l is monaco.languages.Location => l !== null);
 }
 
 // LSP SymbolKind is 1-based; monaco.languages.SymbolKind is the same list 0-based.

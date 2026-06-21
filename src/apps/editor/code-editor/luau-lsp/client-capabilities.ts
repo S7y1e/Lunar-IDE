@@ -16,6 +16,7 @@ export function clientCapabilities() {
                 },
             },
             hover: { contentFormat: ["markdown", "plaintext"] },
+            definition: { dynamicRegistration: false, linkSupport: true },
             inlayHint: { dynamicRegistration: false },
             documentHighlight: { dynamicRegistration: false },
             codeAction: {
