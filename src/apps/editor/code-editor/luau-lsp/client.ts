@@ -14,6 +14,10 @@ import {
     LspDocumentSymbol,
     LspWorkspaceEdit,
     LspSignatureHelp,
+    LspInlayHint,
+    LspDocumentHighlight,
+    LspCodeActionResult,
+    LspRange,
 } from "./convert";
 
 const SIDECAR = "binaries/luau-lsp";
@@ -256,6 +260,38 @@ export class LuauLspClient {
         return this.conn.sendRequest("textDocument/signatureHelp", {
             textDocument: { uri },
             position,
+        });
+    }
+
+    async inlayHint(uri: string, range: LspRange): Promise<LspInlayHint[] | null> {
+        await this.ready;
+        return this.conn.sendRequest("textDocument/inlayHint", {
+            textDocument: { uri },
+            range,
+        });
+    }
+
+    async documentHighlight(
+        uri: string,
+        position: LspPosition
+    ): Promise<LspDocumentHighlight[] | null> {
+        await this.ready;
+        return this.conn.sendRequest("textDocument/documentHighlight", {
+            textDocument: { uri },
+            position,
+        });
+    }
+
+    async codeAction(
+        uri: string,
+        range: LspRange,
+        diagnostics: LspDiagnostic[]
+    ): Promise<LspCodeActionResult> {
+        await this.ready;
+        return this.conn.sendRequest("textDocument/codeAction", {
+            textDocument: { uri },
+            range,
+            context: { diagnostics },
         });
     }
 

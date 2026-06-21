@@ -10,8 +10,16 @@ import {
     toWorkspaceEdit,
     toSignatureHelp,
 } from "./convert";
-import type { LspCompletionItem } from "./convert";
+import type { LspCompletionItem, LspDiagnostic } from "./convert";
+import { toInlayHints, toDocumentHighlights, toCodeActions } from "./convert-actions";
 import { sanitizeSemanticTokens } from "./semantic-tokens";
+
+function toLspRange(range: monaco.IRange) {
+    return {
+        start: { line: range.startLineNumber - 1, character: range.startColumn - 1 },
+        end: { line: range.endLineNumber - 1, character: range.endColumn - 1 },
+    };
+}
 
 // Register every Monaco language feature for one language id, each backed by a
 // request to the luau-lsp client and converted into Monaco's shapes.
@@ -86,6 +94,42 @@ export function registerProviders(
             async provideSignatureHelp(model, position) {
                 const result = await client.signatureHelp(model.uri.toString(), toLspPosition(position));
                 return toSignatureHelp(result);
+            },
+        }),
+
+        monaco.languages.registerInlayHintsProvider(language, {
+            async provideInlayHints(model, range) {
+                const result = await client.inlayHint(model.uri.toString(), toLspRange(range));
+                return { hints: toInlayHints(result), dispose() {} };
+            },
+        }),
+
+        monaco.languages.registerDocumentHighlightProvider(language, {
+            async provideDocumentHighlights(model, position) {
+                const result = await client.documentHighlight(
+                    model.uri.toString(),
+                    toLspPosition(position)
+                );
+                return toDocumentHighlights(result);
+            },
+        }),
+
+        monaco.languages.registerCodeActionProvider(language, {
+            async provideCodeActions(model, range, context) {
+                const diagnostics = context.markers.map(
+                    (m): LspDiagnostic => ({
+                        range: toLspRange(m),
+                        severity: m.severity,
+                        message: m.message,
+                        source: m.source,
+                    })
+                );
+                const result = await client.codeAction(
+                    model.uri.toString(),
+                    toLspRange(range),
+                    diagnostics
+                );
+                return { actions: toCodeActions(result), dispose() {} };
             },
         }),
 

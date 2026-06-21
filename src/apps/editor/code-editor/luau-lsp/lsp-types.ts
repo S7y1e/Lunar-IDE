@@ -71,3 +71,26 @@ export type LspSignatureHelp = {
     activeSignature?: number;
     activeParameter?: number;
 } | null;
+
+export type LspInlayHintLabelPart = { value: string };
+export type LspInlayHint = {
+    position: LspPosition;
+    label: string | LspInlayHintLabelPart[];
+    kind?: number;
+    paddingLeft?: boolean;
+    paddingRight?: boolean;
+    textEdits?: LspTextEdit[];
+};
+
+export type LspDocumentHighlight = { range: LspRange; kind?: number };
+
+export type LspCommand = { title: string; command: string; arguments?: unknown[] };
+export type LspCodeAction = {
+    title: string;
+    kind?: string;
+    diagnostics?: LspDiagnostic[];
+    edit?: LspWorkspaceEdit;
+    command?: LspCommand;
+    isPreferred?: boolean;
+};
+export type LspCodeActionResult = (LspCodeAction | LspCommand)[] | null;

@@ -16,6 +16,16 @@ export function clientCapabilities() {
                 },
             },
             hover: { contentFormat: ["markdown", "plaintext"] },
+            inlayHint: { dynamicRegistration: false },
+            documentHighlight: { dynamicRegistration: false },
+            codeAction: {
+                dynamicRegistration: false,
+                codeActionLiteralSupport: {
+                    codeActionKind: {
+                        valueSet: ["quickfix", "refactor", "source"],
+                    },
+                },
+            },
             semanticTokens: {
                 dynamicRegistration: false,
                 requests: { range: false, full: { delta: false } },
