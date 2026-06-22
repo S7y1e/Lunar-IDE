@@ -133,6 +133,7 @@ export default function ToolWindow(p: Props): ReactNode {
                 <Sidebar
                     currentView="project"
                     path={p.path}
+                    activeFile={p.activeFile}
                     onOpenFile={p.openFile}
                     onRename={p.renameNode}
                 />

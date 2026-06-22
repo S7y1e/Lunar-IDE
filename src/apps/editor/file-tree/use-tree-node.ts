@@ -66,6 +66,12 @@ export function useTreeNode({ node, defaultExpanded, onChanged, renameNode }: Pa
         setExpanded(!expanded);
     };
 
+    const expand = async () => {
+        if (!node.isDir || expanded) return;
+        await ensureLoaded();
+        setExpanded(true);
+    };
+
     const startCreate = async (kind: "file" | "folder") => {
         await ensureLoaded();
         setExpanded(true);
@@ -140,6 +146,7 @@ export function useTreeNode({ node, defaultExpanded, onChanged, renameNode }: Pa
         setRenaming,
         setCreating,
         toggle,
+        expand,
         reload,
         submitCreate,
         submitRename,

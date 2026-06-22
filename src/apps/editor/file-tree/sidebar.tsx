@@ -4,18 +4,28 @@ import { ActivityViewId } from "../activity-bar/activity-views";
 import { FileNode } from "../../../lib/filesystem";
 import { useState } from "react";
 import { TreeSelectionContext } from "./tree-selection";
-import { VscChevronDown, VscCollapseAll, VscRefresh } from "react-icons/vsc";
+import FilteredTree from "./filtered-tree";
+import {
+    VscChevronDown,
+    VscClose,
+    VscCollapseAll,
+    VscRefresh,
+    VscSearch,
+} from "react-icons/vsc";
 
 type Props = {
     currentView: ActivityViewId | null;
     path: string;
+    activeFile?: string | null;
     onOpenFile: (path: string) => void;
     onRename?: (node: FileNode, newName: string) => Promise<string | null>;
 };
 
-export default function Sidebar({ currentView, path, onOpenFile, onRename }: Props) {
+export default function Sidebar({ currentView, path, activeFile, onOpenFile, onRename }: Props) {
     const [selected, setSelected] = useState<string | null>(null);
     const [treeKey, setTreeKey] = useState(0);
+    const [filter, setFilter] = useState("");
+    const query = filter.trim();
 
     if (!currentView) return null;
 
@@ -51,16 +61,42 @@ export default function Sidebar({ currentView, path, onOpenFile, onRename }: Pro
                 </span>
             </div>
 
+            {currentView === "project" && (
+                <div className={style.filterBar}>
+                    <VscSearch size={12} className={style.filterIcon} />
+                    <input
+                        className={style.filterInput}
+                        placeholder="Filter files"
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                    />
+                    {filter && (
+                        <button
+                            className={style.sidebarBtn}
+                            onClick={() => setFilter("")}
+                            title="Clear filter"
+                            aria-label="Clear filter"
+                        >
+                            <VscClose size={14} />
+                        </button>
+                    )}
+                </div>
+            )}
+
             <div className={style.sidebarTree}>
                 {currentView === "project" && (
                     <TreeSelectionContext.Provider
-                        value={{ selected, select: setSelected, openFile: onOpenFile, renameNode: onRename }}
+                        value={{ selected, select: setSelected, openFile: onOpenFile, renameNode: onRename, revealPath: activeFile }}
                     >
-                        <FileTreeNode
-                            key={`${rootNode.path}-${treeKey}`}
-                            node={rootNode}
-                            defaultExpanded
-                        />
+                        {query ? (
+                            <FilteredTree root={path} query={query} />
+                        ) : (
+                            <FileTreeNode
+                                key={`${rootNode.path}-${treeKey}`}
+                                node={rootNode}
+                                defaultExpanded
+                            />
+                        )}
                     </TreeSelectionContext.Provider>
                 )}
             </div>

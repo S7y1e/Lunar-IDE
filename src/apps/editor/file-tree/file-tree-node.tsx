@@ -1,6 +1,7 @@
-import { useContext, type MouseEvent } from "react";
+import { useContext, useEffect, useRef, type MouseEvent } from "react";
 import { VscChevronRight } from "react-icons/vsc";
 import { FileNode } from "../../../lib/filesystem";
+import { canonicalPath } from "../code-editor/luau-lsp/uri";
 import styles from "./file-tree.module.scss";
 import shared from "../styles/shared.module.scss";
 import { resolveFileIcon } from "../file-icons";
@@ -22,7 +23,8 @@ export default function FileTreeNode({
     defaultExpanded = false,
     onChanged,
 }: Props) {
-    const { selected, select, openFile, renameNode } = useContext(TreeSelectionContext);
+    const { selected, select, openFile, renameNode, revealPath } =
+        useContext(TreeSelectionContext);
     const {
         expanded,
         children,
@@ -33,11 +35,32 @@ export default function FileTreeNode({
         setRenaming,
         setCreating,
         toggle,
+        expand,
         reload,
         submitCreate,
         submitRename,
         menuItems,
     } = useTreeNode({ node, defaultExpanded, onChanged, renameNode });
+
+    const rowRef = useRef<HTMLDivElement>(null);
+
+    // Auto-reveal the active editor file: ancestor folders expand on the way
+    // down (each expansion mounts children, cascading the effect), and the
+    // matching leaf scrolls into view and highlights.
+    useEffect(() => {
+        if (!revealPath) return;
+        const here = canonicalPath(node.path);
+        if (node.isDir) {
+            if (revealPath.startsWith(here + "\\")) expand();
+        } else if (here === revealPath) {
+            select(node.path);
+            rowRef.current?.scrollIntoView({ block: "nearest" });
+        }
+        // Only on reveal target change — not on `expanded`, or collapsing a
+        // folder that holds the active file would instantly re-expand it.
+        // The cascade works via children mounting (each runs this on mount).
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [revealPath]);
 
     const handleClick = () => {
         select(node.path);
@@ -57,6 +80,7 @@ export default function FileTreeNode({
     return (
         <div>
             <div
+                ref={rowRef}
                 className={`${styles.treeRow} ${selected === node.path ? styles.selected : ""}`}
                 style={{ paddingLeft: depth * 12 + 8 }}
                 onClick={handleClick}

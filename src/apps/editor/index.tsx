@@ -8,9 +8,8 @@ import DockStripe from "./layout/dock-stripe";
 import EditorWorkbench from "./layout/editor-workbench";
 import ToolWindow from "./layout/tool-window";
 import type { ToolId } from "./layout/layout-types";
-import EditorTabs from "./code-editor/editor-tabs";
-import EditorPane from "./code-editor/editor-pane";
-import { useOpenFiles } from "./code-editor/use-open-files";
+import EditorGroup from "./code-editor/editor-group";
+import { useEditorGroups } from "./code-editor/use-editor-groups";
 import { useLuauLsp } from "./code-editor/luau-lsp/use-luau-lsp";
 import { useEditorNavigation } from "./code-editor/use-editor-navigation";
 import { useUnsavedFiles } from "./code-editor/use-unsaved-files";
@@ -84,9 +83,27 @@ function EditorBody({ path }: Props) {
     useLuauLsp(path);
 
     const {
-        openFiles, activeFile, setActiveFile, openFile, closeFile, renameFile, reorderFiles,
-    } = useOpenFiles();
+        groups, activeGroupId, activeFile, canSplit, openFile, renameFile,
+        focusGroup, selectInGroup, closeInGroup, reorderInGroup, splitEditor,
+    } = useEditorGroups();
     const renameNode = useRenameNode(path, renameFile);
+
+    // Each split group owns its Monaco instance; keep editorRef pointed at the
+    // focused group so navigation (reveal, go-to-def) acts on the right editor.
+    const groupEditors = useRef<Map<number, monaco.editor.IStandaloneCodeEditor>>(
+        new Map(),
+    );
+    const onEditorMount = (
+        id: number,
+        editor: monaco.editor.IStandaloneCodeEditor,
+    ) => {
+        groupEditors.current.set(id, editor);
+        if (id === activeGroupId) editorRef.current = editor;
+    };
+    useEffect(() => {
+        const editor = groupEditors.current.get(activeGroupId);
+        if (editor) editorRef.current = editor;
+    }, [activeGroupId]);
 
     const { tree } = useDataModel(path);
     const resolve = useMemo(() => makeResolver(tree), [tree]);
@@ -206,35 +223,42 @@ function EditorBody({ path }: Props) {
                 stripeDown={stripeDown}
                 onOpenSettings={() => setSettingsOpen(true)}
                 center={
-                    <>
-                        <EditorTabs
-                            files={openFiles}
-                            active={activeFile}
-                            dirtyFiles={dirtyFiles}
-                            onSelect={setActiveFile}
-                            onClose={closeFile}
-                            onReorder={reorderFiles}
-                        />
-                        <div className={styles.editorArea}>
-                            <EditorPane
-                                path={activeFile}
-                                onDirtyChange={handleDirtyChange}
-                                onCursorChange={setCursor}
-                                onReady={(editor) => (editorRef.current = editor)}
-                                onAddWatch={(expr) => {
-                                    evalWatches.add(expr);
-                                    showView("watches");
-                                }}
-                                onAddLogpoint={(line, expr) => {
-                                    if (!activeFile) return;
-                                    logpoints.add(toRelative(path, activeFile), line, expr);
-                                    showView("logpoints");
-                                }}
-                                logpointLines={logpointLines}
-                                onRemoveLogpointLine={removeLogpointLine}
-                            />
-                        </div>
-                    </>
+                    <div className={styles.editorGroups}>
+                        {groups.map((g) => {
+                            const isActive = g.id === activeGroupId;
+                            return (
+                                <EditorGroup
+                                    key={g.id}
+                                    group={g}
+                                    root={path}
+                                    active={isActive && groups.length > 1}
+                                    canSplit={canSplit}
+                                    dirtyFiles={dirtyFiles}
+                                    onSelect={(p) => selectInGroup(g.id, p)}
+                                    onClose={(p) => closeInGroup(g.id, p)}
+                                    onReorder={(f, t) => reorderInGroup(g.id, f, t)}
+                                    onFocus={() => focusGroup(g.id)}
+                                    onSplit={splitEditor}
+                                    onEditorMount={onEditorMount}
+                                    pane={{
+                                        onDirtyChange: handleDirtyChange,
+                                        onCursorChange: isActive ? setCursor : () => {},
+                                        onAddWatch: (expr) => {
+                                            evalWatches.add(expr);
+                                            showView("watches");
+                                        },
+                                        onAddLogpoint: (line, expr) => {
+                                            if (!g.active) return;
+                                            logpoints.add(toRelative(path, g.active), line, expr);
+                                            showView("logpoints");
+                                        },
+                                        logpointLines: isActive ? logpointLines : [],
+                                        onRemoveLogpointLine: removeLogpointLine,
+                                    }}
+                                />
+                            );
+                        })}
+                    </div>
                 }
             />
 
