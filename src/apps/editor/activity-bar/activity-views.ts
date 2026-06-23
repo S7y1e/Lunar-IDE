@@ -17,6 +17,8 @@ import {
     VscChecklist,
     VscEye,
     VscDebugAlt,
+    VscLightbulb,
+    VscWarning,
 } from "react-icons/vsc";
 
 export type ActivityViewId =
@@ -26,6 +28,8 @@ export type ActivityViewId =
     | "structure"
     | "datamodel"
     | "deps"
+    | "insights"
+    | "problems"
     | "hierarchy"
     | "callhierarchy"
     | "usages"
@@ -74,6 +78,16 @@ export const ACTIVITY_VIEWS: ActivityView[] = [
         id: "deps",
         label: "Dependencies",
         icon: VscReferences,
+    },
+    {
+        id: "insights",
+        label: "Insights",
+        icon: VscLightbulb,
+    },
+    {
+        id: "problems",
+        label: "Problems",
+        icon: VscWarning,
     },
     {
         id: "hierarchy",

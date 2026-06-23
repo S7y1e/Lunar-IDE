@@ -8,6 +8,8 @@ import SyncPanel from "../sync/sync-panel";
 import ToolchainPanel from "../toolchain/toolchain-panel";
 import DataModelPanel from "../data-model/data-model-panel";
 import DependenciesPanel from "../dependencies/dependencies-panel";
+import InsightsPanel from "../insights/insights-panel";
+import ProblemsPanel from "../problems/problems-panel";
 import HierarchyPanel from "../hierarchy/hierarchy-panel";
 import CallHierarchyPanel, { type CallTarget } from "../callhierarchy/call-hierarchy-panel";
 import UsagesPanel, { type UsageTarget } from "../usages/usages-panel";
@@ -23,6 +25,7 @@ import { type useRuntimeBridge } from "../runtime/use-runtime-bridge";
 import { type useStateInspector } from "../runtime/use-state-inspector";
 import { type useEvalWatches } from "../runtime/use-eval-watches";
 import { type useLogpoints } from "../runtime/use-logpoints";
+import { type useInsights } from "../insights/use-insights";
 import { type FileNode } from "../../../lib/filesystem";
 
 type Props = {
@@ -40,6 +43,7 @@ type Props = {
     stateInspector: ReturnType<typeof useStateInspector>;
     evalWatches: ReturnType<typeof useEvalWatches>;
     logpoints: ReturnType<typeof useLogpoints>;
+    insights: ReturnType<typeof useInsights>;
     callTarget: CallTarget | null;
     usageTarget: UsageTarget | null;
     renameNode: (node: FileNode, newName: string) => Promise<string | null>;
@@ -89,6 +93,10 @@ export default function ToolWindow(p: Props): ReactNode {
             return <DataModelPanel root={p.path} activeFile={p.activeFile} onOpenFile={p.openFile} />;
         case "deps":
             return <DependenciesPanel root={p.path} activeFile={p.activeFile} onOpenFile={p.openFile} />;
+        case "insights":
+            return <InsightsPanel insights={p.insights} onOpenAt={p.openFileAt} />;
+        case "problems":
+            return <ProblemsPanel root={p.path} onOpenAt={p.openFileAt} />;
         case "hierarchy":
             return <HierarchyPanel root={p.path} activeFile={p.activeFile} onOpenFile={p.openFile} />;
         case "callhierarchy":

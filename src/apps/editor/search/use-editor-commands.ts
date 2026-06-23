@@ -67,6 +67,8 @@ export function useEditorCommands(d: Deps): Command[] {
             { id: "view.datamodel", title: "Go to: DataModel", run: () => d.showView("datamodel") },
             { id: "view.structure", title: "Go to: Structure", run: () => d.showView("structure") },
             { id: "view.deps", title: "Go to: Dependencies", run: () => d.showView("deps") },
+            { id: "view.insights", title: "Go to: Insights", run: () => d.showView("insights") },
+            { id: "view.problems", title: "Go to: Problems", run: () => d.showView("problems") },
             { id: "view.hierarchy", title: "Go to: Hierarchy", run: () => d.showView("hierarchy") },
             { id: "callhierarchy.show", title: "Call Hierarchy", run: d.showCallHierarchy },
             { id: "usages.find", title: "Find Usages", run: d.showFindUsages },

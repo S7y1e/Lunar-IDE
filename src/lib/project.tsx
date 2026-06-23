@@ -181,6 +181,20 @@ export function getProjectEvents(): Promise<EventGraph | null> {
     return invoke("project_events");
 }
 
+export type InsightFinding = {
+    severity: string;
+    category: string;
+    message: string;
+    file: string;
+    line: number;
+};
+
+export type Insights = { findings: InsightFinding[] };
+
+export function getProjectInsights(): Promise<Insights | null> {
+    return invoke("project_insights");
+}
+
 const ProjectContext = createContext<ProjectSnapshot | null>(null);
 
 export function ProjectProvider({

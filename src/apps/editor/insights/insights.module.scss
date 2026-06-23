@@ -1,0 +1,144 @@
+@use "../styles/vars" as *;
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    background: $panel;
+    height: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    height: 32px;
+    padding: 0 6px 0 10px;
+    border-bottom: 1px solid $divider;
+}
+
+.title {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: $muted;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    user-select: none;
+}
+
+.count {
+    margin-left: 4px;
+    padding: 0 5px;
+    border-radius: 8px;
+    background: $hover;
+    color: $text;
+    font-size: 10px;
+}
+
+.headerBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: $icon;
+    cursor: pointer;
+
+    &:hover {
+        background: $hover;
+        color: #fff;
+    }
+}
+
+.body {
+    flex: 1;
+    overflow: auto;
+    padding: 4px 0;
+}
+
+.section {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px 4px;
+    color: $muted;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    user-select: none;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 4px 12px;
+    background: transparent;
+    border: none;
+    color: $text;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+        background: $hover;
+    }
+}
+
+.dot {
+    flex-shrink: 0;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: $muted;
+}
+
+.warning {
+    background: $warning;
+}
+
+.info {
+    background: #4a8af7;
+}
+
+.message {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.path {
+    flex-shrink: 0;
+    color: $muted;
+    font-size: 11px;
+}
+
+.empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 28px 18px;
+    color: $muted;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.emptyIcon {
+    color: $icon;
+    opacity: 0.6;
+}

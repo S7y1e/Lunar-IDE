@@ -1,6 +1,7 @@
 import * as monaco from "monaco-editor";
 import { LuauLspClient } from "./client";
 import { toMarker } from "./convert";
+import { setDiagnostics } from "./diagnostics-store";
 import { registerProviders } from "./language-providers";
 
 const LUAU_LANGUAGES = new Set(["lua", "luau"]);
@@ -16,6 +17,7 @@ export function registerLuauLsp(client: LuauLspClient): () => void {
         if (model) {
             monaco.editor.setModelMarkers(model, MARKER_OWNER, diagnostics.map(toMarker));
         }
+        setDiagnostics(uri, diagnostics);
     };
 
     const track = (model: monaco.editor.ITextModel) => {

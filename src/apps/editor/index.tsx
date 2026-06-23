@@ -20,6 +20,8 @@ import { useRuntimeBridge } from "./runtime/use-runtime-bridge";
 import { useStateInspector } from "./runtime/use-state-inspector";
 import { useEvalWatches } from "./runtime/use-eval-watches";
 import { useLogpoints } from "./runtime/use-logpoints";
+import { useInsights } from "./insights/use-insights";
+import { uriToPath, canonicalPath } from "./code-editor/luau-lsp/uri";
 import { toRelative } from "./data-model/instance-path";
 import { makeResolver } from "./runtime/resolve-instance";
 import { extractDiagnostics } from "./runtime/diagnostics";
@@ -134,6 +136,34 @@ function EditorBody({ path }: Props) {
     );
     useRuntimeMarkers(diagnostics);
 
+    // Project Insights findings become squiggles on the active file.
+    const insights = useInsights(path);
+    useEffect(() => {
+        const OWNER = "lunar-insights";
+        monaco.editor.getModels().forEach((m) => monaco.editor.setModelMarkers(m, OWNER, []));
+        if (!activeFile || !activeRel || !insights.insights) return;
+        const model = monaco.editor
+            .getModels()
+            .find((m) => canonicalPath(uriToPath(m.uri.toString())) === canonicalPath(activeFile));
+        if (!model) return;
+        const mine = insights.insights.findings.filter((f) => f.file === activeRel);
+        monaco.editor.setModelMarkers(
+            model,
+            OWNER,
+            mine.map((f) => ({
+                severity:
+                    f.severity === "info"
+                        ? monaco.MarkerSeverity.Info
+                        : monaco.MarkerSeverity.Warning,
+                message: f.message,
+                startLineNumber: f.line,
+                startColumn: 1,
+                endLineNumber: f.line,
+                endColumn: 1000,
+            })),
+        );
+    }, [activeFile, activeRel, insights.insights]);
+
     const commands = useEditorCommands({
         backend: sync.backend,
         port: sync.port,
@@ -202,6 +232,7 @@ function EditorBody({ path }: Props) {
             stateInspector={stateInspector}
             evalWatches={evalWatches}
             logpoints={logpoints}
+            insights={insights}
             callTarget={nav.callTarget}
             usageTarget={nav.usageTarget}
             renameNode={renameNode}

@@ -9,6 +9,7 @@ pub mod client_agent;
 pub mod dependencies;
 pub mod events;
 pub mod index;
+pub mod insights;
 pub mod logpoints;
 pub mod search;
 pub mod sourcemap;

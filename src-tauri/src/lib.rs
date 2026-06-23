@@ -30,6 +30,7 @@ pub fn run() {
             project::project_run_test,
             project::dependencies::project_dependencies,
             project::events::project_events,
+            project::insights::project_insights,
             project::search::project_search,
             project::todos::project_todos,
             project::logpoints::logpoints_arm,
