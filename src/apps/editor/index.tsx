@@ -166,10 +166,15 @@ function EditorBody({ path }: Props) {
     const studioPlay = async (stop: boolean) => {
         try {
             if (!stop) {
-                if (logpoints.points.length) await logpoints.arm();
+                const armed = logpoints.points.length > 0;
+                if (armed) await logpoints.arm();
                 // Plant the client log agent so the play-test client streams its
                 // own output (the plugin can't see the client VM). Best-effort.
                 await invoke("client_agent_install").catch(() => {});
+                // Let the sync server push the injected logpoint lines to Studio
+                // before play starts — server scripts run instantly, so without
+                // this wait the run uses the pre-injection files (logpoints lost).
+                if (armed) await new Promise((r) => setTimeout(r, 1000));
             }
             await invoke("studio_play", { stop });
             if (stop) {

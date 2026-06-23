@@ -15,7 +15,7 @@ const SKIP_DIRS: &[&str] = &["node_modules", "target", "dist", "build", ".git", 
 #[serde(rename_all = "camelCase")]
 pub struct Logpoint {
     pub file: String, // project-relative, "/"-separated
-    pub line: u32,    // 1-based; the print is inserted *before* this line
+    pub line: u32,    // 1-based; the print is inserted *after* this statement
     pub expr: String,
     #[serde(default)]
     pub include_stack: bool,
@@ -24,6 +24,52 @@ pub struct Logpoint {
 fn leading_ws(line: &str) -> &str {
     let end = line.find(|c: char| c != ' ' && c != '\t').unwrap_or(line.len());
     &line[..end]
+}
+
+// Net bracket nesting change on a line, ignoring string literals and `--`
+// line comments so a `{` inside a string or comment doesn't throw off the count.
+fn bracket_delta(line: &str) -> i32 {
+    let bytes = line.as_bytes();
+    let mut depth = 0i32;
+    let mut i = 0;
+    let mut quote: Option<u8> = None;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if let Some(q) = quote {
+            if c == b'\\' {
+                i += 2;
+                continue;
+            }
+            if c == q {
+                quote = None;
+            }
+        } else {
+            match c {
+                b'"' | b'\'' => quote = Some(c),
+                b'-' if bytes.get(i + 1) == Some(&b'-') => break,
+                b'(' | b'{' | b'[' => depth += 1,
+                b')' | b'}' | b']' => depth -= 1,
+                _ => {}
+            }
+        }
+        i += 1;
+    }
+    depth
+}
+
+// Index of the last line of the (possibly multi-line) statement that starts at
+// `start`, so the logpoint prints after the variable on that line exists.
+fn statement_end(lines: &[String], start: usize) -> usize {
+    let mut depth = 0i32;
+    let mut i = start;
+    while i < lines.len() {
+        depth += bracket_delta(&lines[i]);
+        if depth <= 0 {
+            return i;
+        }
+        i += 1;
+    }
+    lines.len().saturating_sub(1)
 }
 
 fn lua_string(s: &str) -> String {
@@ -67,9 +113,10 @@ pub fn logpoints_arm(
 
         group.sort_by(|a, b| b.line.cmp(&a.line));
         for p in group {
-            let idx = (p.line as usize).saturating_sub(1).min(lines.len());
+            let idx = (p.line as usize).saturating_sub(1).min(lines.len().saturating_sub(1));
             let indent = lines.get(idx).map(|l| leading_ws(l).to_string()).unwrap_or_default();
-            lines.insert(idx, render(p, &indent));
+            let end = statement_end(&lines, idx);
+            lines.insert((end + 1).min(lines.len()), render(p, &indent));
         }
 
         std::fs::write(&path, lines.join("\n") + "\n").map_err(|e| e.to_string())?;

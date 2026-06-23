@@ -18,6 +18,10 @@ import { MONACO_THEME, getTheme, subscribeTheme } from "../../../lib/theme";
 
 type CursorPosition = { line: number; column: number };
 
+// Marker appended to every injected logpoint line (kept in sync with the Rust
+// side in project/logpoints.rs).
+const LP_MARKER = "--[[lunar:lp]]";
+
 // User editor settings applied on top of EDITOR_OPTIONS, live.
 function applyEditorSettings(
     editor: monaco.editor.IStandaloneCodeEditor,
@@ -101,21 +105,44 @@ export default function EditorPane({
     logpointLinesRef.current = logpointLines;
     const lpDecoRef = useRef<string[]>([]);
 
+    // While armed, the file holds injected marker lines that shift Monaco's line
+    // numbers. Logpoints are stored in clean-file coords, so translate at the
+    // boundary (these are no-ops when nothing is injected).
+    const toModelLine = (model: monaco.editor.ITextModel, cleanLine: number) => {
+        let clean = 0;
+        for (let ln = 1; ln <= model.getLineCount(); ln++) {
+            if (model.getLineContent(ln).includes(LP_MARKER)) continue;
+            if (++clean === cleanLine) return ln;
+        }
+        return cleanLine;
+    };
+    const toCleanLine = (model: monaco.editor.ITextModel, modelLine: number) => {
+        let markers = 0;
+        for (let ln = 1; ln < modelLine; ln++) {
+            if (model.getLineContent(ln).includes(LP_MARKER)) markers++;
+        }
+        return modelLine - markers;
+    };
+
     // Paint a glyph in the gutter for each logpoint line in the active file.
     const applyLogpointGlyphs = () => {
         const editor = editorRef.current;
-        if (!editor) return;
-        const decos = (logpointLinesRef.current ?? []).map((line) => ({
-            range: new monaco.Range(line, 1, line, 1),
-            options: {
-                glyphMarginClassName: "lunar-logpoint-glyph",
-                glyphMarginHoverMessage: { value: "Logpoint — click to remove" },
-            },
-        }));
+        const model = editor?.getModel();
+        if (!editor || !model) return;
+        const decos = (logpointLinesRef.current ?? []).map((line) => {
+            const ml = toModelLine(model, line);
+            return {
+                range: new monaco.Range(ml, 1, ml, 1),
+                options: {
+                    glyphMarginClassName: "lunar-logpoint-glyph",
+                    glyphMarginHoverMessage: { value: "Logpoint — click to remove" },
+                },
+            };
+        });
         lpDecoRef.current = editor.deltaDecorations(lpDecoRef.current, decos);
     };
 
-    useEffect(applyLogpointGlyphs, [logpointLines, path]);
+    useEffect(applyLogpointGlyphs, [logpointLines, path, content]);
 
     // Injected logpoint lines live on disk (so rojo syncs them) but are folded
     // out of view here, so the user never sees the print noise.
@@ -125,7 +152,7 @@ export default function EditorPane({
         if (!editor || !model) return;
         const ranges: monaco.Range[] = [];
         for (let ln = 1; ln <= model.getLineCount(); ln++) {
-            if (model.getLineContent(ln).includes("--[[lunar:lp]]")) {
+            if (model.getLineContent(ln).includes(LP_MARKER)) {
                 ranges.push(new monaco.Range(ln, 1, ln, 1));
             }
         }
@@ -162,8 +189,11 @@ export default function EditorPane({
         // Click a logpoint glyph in the gutter to remove that logpoint.
         editor.onMouseDown((e) => {
             if (e.target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) return;
-            const line = e.target.position?.lineNumber;
-            if (line && logpointLinesRef.current?.includes(line)) {
+            const model = editor.getModel();
+            const ml = e.target.position?.lineNumber;
+            if (!model || !ml) return;
+            const line = toCleanLine(model, ml);
+            if (logpointLinesRef.current?.includes(line)) {
                 onRemoveLogpointLineRef.current?.(line);
             }
         });
@@ -221,9 +251,11 @@ export default function EditorPane({
             contextMenuGroupId: "navigation",
             contextMenuOrder: 1.6,
             run: (ed) => {
+                const model = ed.getModel();
                 const expr = exprAtCursor(ed);
-                const line = ed.getPosition()?.lineNumber;
-                if (expr && line) onAddLogpointRef.current?.(line, expr);
+                const ml = ed.getPosition()?.lineNumber;
+                if (model && expr && ml)
+                    onAddLogpointRef.current?.(toCleanLine(model, ml), expr);
             },
         });
 

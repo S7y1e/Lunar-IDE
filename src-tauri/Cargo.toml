@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "3.1.0"
+version = "3.1.1"
 description = "Lunar IDE"
 authors = ["S7y1e"]
 license = "PolyForm-Noncommercial-1.0.0"
