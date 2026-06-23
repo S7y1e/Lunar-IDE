@@ -54,6 +54,13 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
 
+    # crates.io downloads intermittently fail on the Windows runner with
+    # "[16] Error in the HTTP2 framing layer". Disable HTTP/2 multiplexing and
+    # retry to make the cargo fetch reliable.
+    env:
+      CARGO_HTTP_MULTIPLEXING: "false"
+      CARGO_NET_RETRY: "5"
+
     steps:
       - uses: actions/checkout@v4
 

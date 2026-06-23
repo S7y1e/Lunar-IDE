@@ -31,6 +31,22 @@ const INIT_NAMES: &[&str] = &[
 ];
 
 fn expand_dir(path: &Path, instance_name: &str) -> DataModelNode {
+    // A directory carrying its own default.project.json is a nested project
+    // (e.g. every Wally package: `{ tree: { $path: "lib" } }`). Honor it so the
+    // package collapses to the ModuleScript the link file requires, instead of a
+    // raw Folder. Without this, `_Index[...]["red"]` resolves to a Folder and the
+    // require fails.
+    let project = path.join("default.project.json");
+    if project.exists() {
+        if let Some(tree) = std::fs::read_to_string(&project)
+            .ok()
+            .and_then(|t| serde_json::from_str::<Value>(&t).ok())
+            .and_then(|j| j.get("tree").cloned())
+        {
+            return walk_tree(path, instance_name, &tree);
+        }
+    }
+
     let mut file_paths: Vec<String> = vec![];
     let mut class_name = "Folder".to_string();
     let mut children: Vec<DataModelNode> = vec![];
