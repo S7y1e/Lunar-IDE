@@ -28,6 +28,7 @@ pub fn run() {
             project::project_data_model,
             project::project_write_sourcemap,
             project::project_run_test,
+            project::testez::project_setup_testez,
             project::dependencies::project_dependencies,
             project::events::project_events,
             project::insights::project_insights,

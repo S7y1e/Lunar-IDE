@@ -6,18 +6,40 @@ import { setCurrentLspClient } from "./lsp-registry";
 import { buildConfigRoot } from "./config";
 import { discoverDefinitionFiles } from "./discover-definitions";
 import { pathToUri } from "./uri";
+import { listen } from "@tauri-apps/api/event";
 import { readSettings, subscribeSettings, SettingsValues } from "../../../../lib/settings";
-import { getProjectSnapshot } from "../../../../lib/project";
+import { getProjectSnapshot, type ProjectSnapshot } from "../../../../lib/project";
 
 const DEFINITIONS_RESOURCE = "resources/globalTypes.PluginSecurity.d.luau";
+const TESTEZ_RESOURCE = "resources/testez.d.luau";
 
-async function resolveDefinitions(): Promise<string | null> {
+async function resolveBundled(resource: string): Promise<string | null> {
     try {
-        return await resolveResource(DEFINITIONS_RESOURCE);
+        return await resolveResource(resource);
     } catch (e) {
-        console.warn("[luau-lsp] could not resolve Roblox definitions", e);
+        console.warn("[luau-lsp] could not resolve", resource, e);
         return null;
     }
+}
+
+// This hook mounts as a child of ProjectProvider, so on a cold boot its effect
+// runs before the provider opens the project and getProjectSnapshot returns null
+// (empty store). Wait for project://opened so we see [test]/projectFile config.
+async function snapshotWhenReady(): Promise<ProjectSnapshot | null> {
+    const snap = await getProjectSnapshot();
+    if (snap) return snap;
+    return new Promise((resolve) => {
+        let done = false;
+        const finish = async () => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            un.then((fn) => fn());
+            resolve(await getProjectSnapshot());
+        };
+        const un = listen("project://opened", finish);
+        const timer = setTimeout(finish, 3000);
+    });
 }
 
 // FFlags are process-global and locked at server boot, so a change to any of
@@ -43,7 +65,7 @@ export function useLuauLsp(rootPath: string) {
         let currentValues: SettingsValues = {};
         let loaded = false;
         let fflagsSig = "";
-        let definitions: string | null = null;
+        let definitionsPaths: string[] = [];
         let discovered: Record<string, string> = {};
         let projectFile: string | undefined;
 
@@ -66,7 +88,7 @@ export function useLuauLsp(rootPath: string) {
             dispose();
             await client?.stop().catch(() => {});
             if (stopped) return;
-            client = new LuauLspClient(pathToUri(rootPath), getConfig, definitions);
+            client = new LuauLspClient(pathToUri(rootPath), getConfig, definitionsPaths);
             dispose = registerLuauLsp(client);
             setCurrentLspClient(client);
             try {
@@ -91,14 +113,23 @@ export function useLuauLsp(rootPath: string) {
         (async () => {
             const [values, defs, snapshot, found] = await Promise.all([
                 readSettings(),
-                resolveDefinitions(),
-                getProjectSnapshot(),
+                resolveBundled(DEFINITIONS_RESOURCE),
+                snapshotWhenReady(),
                 discoverDefinitionFiles(rootPath),
             ]);
             if (stopped) return;
+            // TestEZ injects describe/it/expect as globals; load their bundled
+            // definitions only for projects that declare a [test] testez path, so
+            // non-test projects don't get those globals workspace-wide.
+            const testezDefs = snapshot?.testEz
+                ? await resolveBundled(TESTEZ_RESOURCE)
+                : null;
+            if (stopped) return;
             currentValues = values;
             fflagsSig = fflagSignature(values);
-            definitions = defs;
+            definitionsPaths = [defs, testezDefs].filter(
+                (p): p is string => !!p,
+            );
             discovered = found;
             projectFile = snapshot?.projectFile;
             loaded = true;

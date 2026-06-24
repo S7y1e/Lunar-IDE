@@ -35,7 +35,10 @@
             "binaries/argon",
             "binaries/rokit"
         ],
-        "resources": ["resources/globalTypes.PluginSecurity.d.luau"],
+        "resources": [
+            "resources/globalTypes.PluginSecurity.d.luau",
+            "resources/testez.d.luau"
+        ],
         "icon": [
             "icons/32x32.png",
             "icons/128x128.png",

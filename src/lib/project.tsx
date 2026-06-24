@@ -14,6 +14,8 @@ export type ProjectSnapshot = {
     projectFile: string;
     syncBackend: string | null;
     testCommand: string | null;
+    testEz: string | null;
+    testRoots: string[];
     buildOutput: string | null;
 };
 
@@ -21,6 +23,29 @@ export type TestRun = { code: number; output: string };
 
 export function runProjectTest(): Promise<TestRun> {
     return invoke("project_run_test");
+}
+
+// TestEZ result tree, posted back by the Studio bridge plugin (type "testResults").
+export type TestNode = {
+    phrase: string;
+    nodeType: string;
+    status: string; // "Success" | "Failure" | "Skipped"
+    errors: string[];
+    children: TestNode[];
+};
+export type TestResults = {
+    successCount?: number;
+    failureCount?: number;
+    skippedCount?: number;
+    errors?: string[];
+    children?: TestNode[];
+    error?: string; // config/require/run failure, before any test ran
+};
+
+export type TestezSetup = { log: string; specFile: string | null };
+
+export function setupTestez(): Promise<TestezSetup> {
+    return invoke("project_setup_testez");
 }
 
 export type SearchMatch = {

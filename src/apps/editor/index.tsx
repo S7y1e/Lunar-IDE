@@ -21,6 +21,7 @@ import { useStateInspector } from "./runtime/use-state-inspector";
 import { useEvalWatches } from "./runtime/use-eval-watches";
 import { useLogpoints } from "./runtime/use-logpoints";
 import { useInsights } from "./insights/use-insights";
+import { useTestResults } from "./tests/use-test-results";
 import { uriToPath, canonicalPath } from "./code-editor/luau-lsp/uri";
 import { toRelative } from "./data-model/instance-path";
 import { makeResolver } from "./runtime/resolve-instance";
@@ -136,6 +137,8 @@ function EditorBody({ path }: Props) {
     );
     useRuntimeMarkers(diagnostics);
 
+    const tests = useTestResults();
+
     // Project Insights findings become squiggles on the active file.
     const insights = useInsights(path);
     useEffect(() => {
@@ -173,6 +176,7 @@ function EditorBody({ path }: Props) {
         build,
         test,
         testCommand: project?.testCommand,
+        runTests: tests.run,
         clearRuntime: runtime.clear,
         openPalette: palette.open,
         toggle: layout.toggle,
@@ -233,6 +237,7 @@ function EditorBody({ path }: Props) {
             evalWatches={evalWatches}
             logpoints={logpoints}
             insights={insights}
+            tests={tests}
             callTarget={nav.callTarget}
             usageTarget={nav.usageTarget}
             renameNode={renameNode}

@@ -14,6 +14,7 @@ type Deps = {
     build: () => void;
     test: () => void;
     testCommand?: string | null;
+    runTests: () => void | Promise<void>;
     clearRuntime: () => void;
     openPalette: () => void;
     toggle: (id: ToolId) => void;
@@ -49,6 +50,15 @@ export function useEditorCommands(d: Deps): Command[] {
                 title: "Test: Run tests",
                 hint: d.testCommand ?? "set [test] command in lunar.toml",
                 run: d.test,
+            },
+            {
+                id: "test.testez",
+                title: "Test: Run (TestEZ)",
+                hint: "run TestEZ in Studio (edit mode)",
+                run: () => {
+                    d.showView("tests");
+                    d.runTests();
+                },
             },
             { id: "runtime.clear", title: "Runtime: Clear output", run: d.clearRuntime },
             {
@@ -96,7 +106,7 @@ export function useEditorCommands(d: Deps): Command[] {
         ],
         [
             d.backend, d.port, d.status, d.startSync, d.stopSync, d.build, d.test,
-            d.testCommand, d.clearRuntime, d.toggle, d.showView, d.activeFile,
+            d.testCommand, d.runTests, d.clearRuntime, d.toggle, d.showView, d.activeFile,
             d.toasts, d.showCallHierarchy, d.showFindUsages, d.openPalette,
         ],
     );

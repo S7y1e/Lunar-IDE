@@ -13,6 +13,7 @@ pub mod insights;
 pub mod logpoints;
 pub mod search;
 pub mod sourcemap;
+pub mod testez;
 pub mod todos;
 mod event_ctx;
 mod event_scan;
@@ -38,6 +39,11 @@ pub struct Manifest {
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct TestManifest {
     pub command: Option<String>,
+    // TestEZ runner (over the Studio bridge): DataModel path to the TestEZ module
+    // and the roots to run, e.g. testez = "game.ReplicatedStorage.Packages.TestEZ".
+    pub testez: Option<String>,
+    #[serde(default)]
+    pub roots: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -102,6 +108,8 @@ impl ProjectModel {
             project_file: self.project_file.clone(),
             sync_backend: self.sync_backend(),
             test_command: self.manifest.test.command.clone(),
+            test_ez: self.manifest.test.testez.clone(),
+            test_roots: self.manifest.test.roots.clone(),
             build_output: self.manifest.build.output.clone(),
         }
     }
@@ -124,6 +132,8 @@ pub struct ProjectSnapshot {
     pub project_file: String,
     pub sync_backend: Option<String>,
     pub test_command: Option<String>,
+    pub test_ez: Option<String>,
+    pub test_roots: Vec<String>,
     pub build_output: Option<String>,
 }
 
