@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { type Command } from "./commands";
 import { type ToolId } from "../layout/layout-types";
 import { type SyncBackend, type SyncStatus } from "../sync/use-sync-server";
@@ -50,6 +51,19 @@ export function useEditorCommands(d: Deps): Command[] {
                 run: d.test,
             },
             { id: "runtime.clear", title: "Runtime: Clear output", run: d.clearRuntime },
+            {
+                id: "sourcemap.regenerate",
+                title: "Sourcemap: Regenerate",
+                hint: "rebuild sourcemap.json for the LSP",
+                run: async () => {
+                    try {
+                        await invoke("project_write_sourcemap");
+                        d.toasts.push("success", "Sourcemap regenerated");
+                    } catch (e) {
+                        d.toasts.push("error", `Sourcemap failed: ${e}`);
+                    }
+                },
+            },
             { id: "search.everywhere", title: "Search Everywhere", hint: "double-shift", run: d.openPalette },
             { id: "search.find", title: "Search: Find in Files", run: () => d.showView("search") },
             { id: "view.todo", title: "Go to: TODO", run: () => d.showView("todo") },
