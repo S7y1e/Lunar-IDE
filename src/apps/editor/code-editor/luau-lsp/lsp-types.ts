@@ -8,6 +8,7 @@ export type LspDiagnostic = {
     severity?: number;
     message: string;
     source?: string;
+    code?: string | number;
 };
 
 export type LspDocumentation = string | { kind?: string; value: string } | undefined;

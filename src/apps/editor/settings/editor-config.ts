@@ -92,6 +92,16 @@ export const EDITOR_SETTINGS: Setting[] = [
         description: "When to draw whitespace characters (spaces/tabs).",
     },
     {
+        key: "lunar.diagnostics.hideUnused",
+        tool: "Editor",
+        category: "Diagnostics",
+        label: "Hide unused-variable warnings",
+        type: "boolean",
+        default: false,
+        description:
+            "Suppress Luau 'never used' lints (LocalUnused, FunctionUnused, ImportUnused) for unused variables, functions, and imports.",
+    },
+    {
         key: "lunar.checkForUpdates",
         tool: "Editor",
         category: "Updates",

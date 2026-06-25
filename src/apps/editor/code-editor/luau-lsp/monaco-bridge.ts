@@ -1,7 +1,8 @@
 import * as monaco from "monaco-editor";
 import { LuauLspClient } from "./client";
-import { toMarker } from "./convert";
+import { toMarker, type LspDiagnostic } from "./convert";
 import { setDiagnostics } from "./diagnostics-store";
+import { filterDiagnostics, subscribeFilter } from "./diagnostics-filter";
 import { registerProviders } from "./language-providers";
 
 const LUAU_LANGUAGES = new Set(["lua", "luau"]);
@@ -12,13 +13,28 @@ const MARKER_OWNER = "luau-lsp";
 export function registerLuauLsp(client: LuauLspClient): () => void {
     const disposables: monaco.IDisposable[] = [];
 
-    client.onDiagnostics = (uri, diagnostics) => {
+    // Keep the raw payloads so a suppression-toggle change can re-filter them.
+    const rawByUri = new Map<string, LspDiagnostic[]>();
+
+    const publish = (uri: string, raw: LspDiagnostic[]) => {
+        const diagnostics = filterDiagnostics(raw);
         const model = findModel(uri);
         if (model) {
             monaco.editor.setModelMarkers(model, MARKER_OWNER, diagnostics.map(toMarker));
         }
         setDiagnostics(uri, diagnostics);
     };
+
+    client.onDiagnostics = (uri, diagnostics) => {
+        rawByUri.set(uri, diagnostics);
+        publish(uri, diagnostics);
+    };
+
+    disposables.push({
+        dispose: subscribeFilter(() => {
+            for (const [uri, raw] of rawByUri) publish(uri, raw);
+        }),
+    });
 
     const track = (model: monaco.editor.ITextModel) => {
         if (!LUAU_LANGUAGES.has(model.getLanguageId())) return;
