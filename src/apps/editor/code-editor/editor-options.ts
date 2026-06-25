@@ -7,6 +7,9 @@ export const EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions 
     fontFamily: "'JetBrains Mono', monospace",
     fontLigatures: true,
     mouseWheelZoom: true,
+    // Auto-trigger completion inside strings so library class-name completion
+    // (e.g. Fusion `New "Text…"`) pops without Ctrl+Space.
+    quickSuggestions: { other: true, comments: false, strings: true },
     lineHeight: 20,
     letterSpacing: 0,
     smoothScrolling: true,

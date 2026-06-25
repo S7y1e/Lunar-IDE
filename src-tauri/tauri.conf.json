@@ -1,7 +1,7 @@
 {
     "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
     "productName": "Lunar",
-    "version": "3.2.1",
+    "version": "3.3.0",
     "identifier": "dev.S7y1e.lunar-ide",
     "build": {
         "frontendDist": "../dist",
@@ -35,7 +35,10 @@
             "binaries/argon",
             "binaries/rokit"
         ],
-        "resources": ["resources/globalTypes.PluginSecurity.d.luau"],
+        "resources": [
+            "resources/globalTypes.PluginSecurity.d.luau",
+            "resources/testez.d.luau"
+        ],
         "icon": [
             "icons/32x32.png",
             "icons/128x128.png",

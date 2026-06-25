@@ -37,11 +37,24 @@ export function makeResolver(
         segments = mapRuntimeContainers(segments);
         if (segments.length === 0) return null;
 
+        // Match greedily: an instance name can itself contain dots (e.g. a
+        // `example.spec` ModuleScript), so at each level try the longest run of
+        // remaining segments that names a child before falling back to shorter.
         let node: DataModelNode = tree;
-        for (const segment of segments) {
-            const child = node.children?.find((c) => c.name === segment);
-            if (!child) return null;
-            node = child;
+        let i = 0;
+        while (i < segments.length) {
+            let matched = false;
+            for (let take = segments.length - i; take >= 1; take--) {
+                const name = segments.slice(i, i + take).join(".");
+                const child = node.children?.find((c) => c.name === name);
+                if (child) {
+                    node = child;
+                    i += take;
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) return null;
         }
         return scriptPath(node);
     };

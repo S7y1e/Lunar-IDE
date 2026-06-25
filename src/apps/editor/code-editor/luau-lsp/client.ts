@@ -50,13 +50,13 @@ export class LuauLspClient {
     constructor(
         private rootUri: string,
         private getConfig: () => Record<string, unknown>,
-        private definitionsPath: string | null = null,
+        private definitionsPaths: string[] = [],
     ) {}
 
     async start(): Promise<void> {
         const args = ["lsp", "--stdio"];
-        if (this.definitionsPath)
-            args.push("--definitions", this.definitionsPath);
+        for (const path of this.definitionsPaths)
+            args.push("--definitions", path);
         args.push(...fflagArgs(this.getConfig()));
         console.log("[luau-lsp] spawning sidecar", args);
         await this.conn.start(SIDECAR, args);

@@ -6,6 +6,7 @@
 /out-tsc
 /dist
 src-tauri/target/
+src-tauri/target-check/
 .DS_Store
 
 # logs

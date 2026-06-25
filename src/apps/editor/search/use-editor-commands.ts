@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { type Command } from "./commands";
 import { type ToolId } from "../layout/layout-types";
 import { type SyncBackend, type SyncStatus } from "../sync/use-sync-server";
@@ -13,6 +14,7 @@ type Deps = {
     build: () => void;
     test: () => void;
     testCommand?: string | null;
+    runTests: () => void | Promise<void>;
     clearRuntime: () => void;
     openPalette: () => void;
     toggle: (id: ToolId) => void;
@@ -49,7 +51,29 @@ export function useEditorCommands(d: Deps): Command[] {
                 hint: d.testCommand ?? "set [test] command in lunar.toml",
                 run: d.test,
             },
+            {
+                id: "test.testez",
+                title: "Test: Run (TestEZ)",
+                hint: "run TestEZ in Studio (edit mode)",
+                run: () => {
+                    d.showView("tests");
+                    d.runTests();
+                },
+            },
             { id: "runtime.clear", title: "Runtime: Clear output", run: d.clearRuntime },
+            {
+                id: "sourcemap.regenerate",
+                title: "Sourcemap: Regenerate",
+                hint: "rebuild sourcemap.json for the LSP",
+                run: async () => {
+                    try {
+                        await invoke("project_write_sourcemap");
+                        d.toasts.push("success", "Sourcemap regenerated");
+                    } catch (e) {
+                        d.toasts.push("error", `Sourcemap failed: ${e}`);
+                    }
+                },
+            },
             { id: "search.everywhere", title: "Search Everywhere", hint: "double-shift", run: d.openPalette },
             { id: "search.find", title: "Search: Find in Files", run: () => d.showView("search") },
             { id: "view.todo", title: "Go to: TODO", run: () => d.showView("todo") },
@@ -82,7 +106,7 @@ export function useEditorCommands(d: Deps): Command[] {
         ],
         [
             d.backend, d.port, d.status, d.startSync, d.stopSync, d.build, d.test,
-            d.testCommand, d.clearRuntime, d.toggle, d.showView, d.activeFile,
+            d.testCommand, d.runTests, d.clearRuntime, d.toggle, d.showView, d.activeFile,
             d.toasts, d.showCallHierarchy, d.showFindUsages, d.openPalette,
         ],
     );

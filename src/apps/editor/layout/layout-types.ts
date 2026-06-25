@@ -18,7 +18,7 @@ export const ALL_TOOLS: ToolId[] = ACTIVITY_VIEWS.map((v) => v.id);
 
 export const regionId = (dock: Dock, slot: Slot): RegionId => `${dock}.${slot}`;
 
-const BOTTOM_TOOLS: ToolId[] = ["runtime", "terminal", "problems"];
+const BOTTOM_TOOLS: ToolId[] = ["runtime", "terminal", "problems", "tests"];
 const RIGHT_TOOLS: ToolId[] = ["state"];
 
 const defaultDock = (id: ToolId): Placement => {
