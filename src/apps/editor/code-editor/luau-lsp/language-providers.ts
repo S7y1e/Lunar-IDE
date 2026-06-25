@@ -139,7 +139,9 @@ export function registerProviders(
             },
             async provideDocumentSemanticTokens(model) {
                 const result = await client.semanticTokensFull(model.uri.toString());
-                if (!result?.data) return null;
+                // The model can be disposed during the await (file closed/switched);
+                // touching it then throws "Model is disposed!".
+                if (!result?.data || model.isDisposed()) return null;
                 return { data: sanitizeSemanticTokens(result.data, model) };
             },
             releaseDocumentSemanticTokens() {},

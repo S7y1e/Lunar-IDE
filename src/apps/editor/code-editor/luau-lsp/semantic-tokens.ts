@@ -10,6 +10,7 @@ export function sanitizeSemanticTokens(
     data: number[],
     model: monaco.editor.ITextModel
 ): Uint32Array {
+    if (model.isDisposed()) return new Uint32Array();
     const out: number[] = [];
     const lineCount = model.getLineCount();
     // Absolute position while decoding the input stream.
