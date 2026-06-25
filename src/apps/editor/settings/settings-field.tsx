@@ -12,6 +12,10 @@ type Props = {
     onReset: () => void;
 };
 
+// Multi-row controls need the full width, so they drop below the label instead
+// of sitting in the right-hand control column.
+const STACKED_TYPES = new Set(["string[]", "record"]);
+
 export default function SettingsField({
     setting,
     value,
@@ -19,19 +23,29 @@ export default function SettingsField({
     onChange,
     onReset,
 }: Props) {
+    const stacked = STACKED_TYPES.has(setting.type);
     return (
-        <div className={styles.field}>
-            <div className={styles.fieldHead}>
-                <span className={styles.fieldLabel}>{setting.label}</span>
-                <span className={styles.fieldKey}>{setting.key}</span>
+        <div className={`${styles.field} ${stacked ? styles.fieldStacked : ""}`}>
+            <div className={styles.fieldInfo}>
+                <div className={styles.fieldHead}>
+                    <span className={styles.fieldLabel}>{setting.label}</span>
+                    {modified && (
+                        <span className={styles.fieldBadge} title="Changed from default">
+                            Modified
+                        </span>
+                    )}
+                </div>
+                <p className={styles.fieldDesc}>{setting.description}</p>
+                <code className={styles.fieldKey}>{setting.key}</code>
+            </div>
+            <div className={styles.fieldControl}>
+                <Control setting={setting} value={value} onChange={onChange} />
                 {modified && (
                     <button className={styles.fieldReset} onClick={onReset}>
                         Reset
                     </button>
                 )}
             </div>
-            <p className={styles.fieldDesc}>{setting.description}</p>
-            <Control setting={setting} value={value} onChange={onChange} />
         </div>
     );
 }
@@ -62,7 +76,7 @@ function Control({
             >
                 {setting.enum.map((option) => (
                     <option key={option} value={option}>
-                        {option}
+                        {setting.enumLabels?.[option] ?? option}
                     </option>
                 ))}
             </select>

@@ -15,6 +15,7 @@ export type Setting = {
     default: boolean | string | number | string[] | Record<string, string>;
     description: string;
     enum?: string[];
+    enumLabels?: Record<string, string>;
     min?: number;
     max?: number;
 };

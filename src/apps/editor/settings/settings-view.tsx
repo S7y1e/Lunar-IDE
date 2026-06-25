@@ -5,6 +5,8 @@ import { ALL_SETTINGS, settingsNav } from "./registry";
 import { Setting } from "./setting";
 import { useSettings } from "./use-settings";
 import SettingsField from "./settings-field";
+import SettingsOverview from "./settings-overview";
+import { CATEGORY_BLURB, toolOrder, categoryOrder } from "./settings-meta";
 
 type Props = {
     onClose: () => void;
@@ -38,6 +40,12 @@ function sectionsOf(settings: Setting[]): Section[] {
         }
         section.settings.push(setting);
     }
+    sections.sort(
+        (a, b) =>
+            toolOrder(a.tool) - toolOrder(b.tool) ||
+            categoryOrder(a.tool, a.category) - categoryOrder(b.tool, b.category) ||
+            a.category.localeCompare(b.category),
+    );
     return sections;
 }
 
@@ -56,16 +64,18 @@ export default function SettingsView({ onClose }: Props) {
 
     const nav = useMemo(settingsNav, []);
 
+    const trimmedQuery = query.trim().toLowerCase();
+    const showOverview = selected === null && trimmedQuery === "";
+
     const sections = useMemo(() => {
-        const q = query.trim().toLowerCase();
         const visible = ALL_SETTINGS.filter((setting) => {
             if (selected && `${setting.tool}::${setting.category}` !== selected) {
                 return false;
             }
-            return !q || matchesQuery(setting, q);
+            return !trimmedQuery || matchesQuery(setting, trimmedQuery);
         });
         return sectionsOf(visible);
-    }, [query, selected]);
+    }, [trimmedQuery, selected]);
 
     return (
         <div className={styles.settingsOverlay}>
@@ -91,7 +101,7 @@ export default function SettingsView({ onClose }: Props) {
             <div className={styles.body}>
                 <nav className={styles.nav}>
                     <button
-                        className={`${styles.navItem} ${
+                        className={`${styles.navItem} ${styles.navItemAll} ${
                             selected === null ? styles.navItemActive : ""
                         }`}
                         onClick={() => setSelected(null)}
@@ -106,7 +116,7 @@ export default function SettingsView({ onClose }: Props) {
                                 return (
                                     <button
                                         key={id}
-                                        className={`${styles.navItem} ${
+                                        className={`${styles.navItem} ${styles.navItemSub} ${
                                             selected === id ? styles.navItemActive : ""
                                         }`}
                                         onClick={() => setSelected(id)}
@@ -120,7 +130,9 @@ export default function SettingsView({ onClose }: Props) {
                 </nav>
 
                 <div className={styles.fields}>
-                    {sections.length === 0 ? (
+                    {showOverview ? (
+                        <SettingsOverview nav={nav} onPick={setSelected} />
+                    ) : sections.length === 0 ? (
                         <div className={styles.empty}>No settings match your search.</div>
                     ) : (
                         sections.map((section) => (
@@ -131,6 +143,11 @@ export default function SettingsView({ onClose }: Props) {
                                     </span>
                                     {section.category}
                                 </h3>
+                                {CATEGORY_BLURB[section.id] && (
+                                    <p className={styles.sectionDesc}>
+                                        {CATEGORY_BLURB[section.id]}
+                                    </p>
+                                )}
                                 {section.settings.map((setting) => (
                                     <SettingsField
                                         key={setting.key}

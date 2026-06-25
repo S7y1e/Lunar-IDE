@@ -36,6 +36,7 @@ export type SemanticTokensLegend = {
 export class LuauLspClient {
     private conn = new LspConnection();
     private versions = new Map<string, number>();
+    private openDocs = new Map<string, string>();
     private resolveReady!: () => void;
     private ready = new Promise<void>(
         (resolve) => (this.resolveReady = resolve),
@@ -153,16 +154,37 @@ export class LuauLspClient {
             });
     }
 
-    /** Re-push configuration so the server re-pulls the latest values. */
+    /**
+     * Re-push configuration so the server re-pulls the latest values, then nudge
+     * open documents so analysis-affecting settings (types/diagnostics/platform)
+     * take effect immediately instead of waiting for the next edit or restart.
+     */
     notifyConfigChanged(): void {
-        this.ready.then(() =>
+        this.ready.then(() => {
             this.conn.sendNotification("workspace/didChangeConfiguration", {
                 settings: this.getConfig(),
-            }),
-        );
+            });
+            // Let the server finish re-pulling config before we ask it to
+            // re-analyze; messages are ordered, the delay just avoids racing the
+            // configuration pull it issues back to us.
+            setTimeout(() => this.refreshOpenDocuments(), 50);
+        });
+    }
+
+    /** Re-send the current text of every open doc to trigger a fresh analysis. */
+    private refreshOpenDocuments(): void {
+        for (const [uri, text] of this.openDocs) {
+            const version = (this.versions.get(uri) ?? 1) + 1;
+            this.versions.set(uri, version);
+            this.conn.sendNotification("textDocument/didChange", {
+                textDocument: { uri, version },
+                contentChanges: [{ text }],
+            });
+        }
     }
 
     didOpen(uri: string, text: string): void {
+        this.openDocs.set(uri, text);
         this.ready.then(() => {
             this.versions.set(uri, 1);
             this.conn.sendNotification("textDocument/didOpen", {
@@ -172,6 +194,7 @@ export class LuauLspClient {
     }
 
     didChange(uri: string, text: string): void {
+        this.openDocs.set(uri, text);
         this.ready.then(() => {
             const version = (this.versions.get(uri) ?? 1) + 1;
             this.versions.set(uri, version);
@@ -184,6 +207,7 @@ export class LuauLspClient {
 
     didClose(uri: string): void {
         this.versions.delete(uri);
+        this.openDocs.delete(uri);
         this.ready.then(() =>
             this.conn.sendNotification("textDocument/didClose", {
                 textDocument: { uri },

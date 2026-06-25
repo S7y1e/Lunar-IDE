@@ -98,16 +98,22 @@ export function useLuauLsp(rootPath: string) {
             }
         };
 
+        let applyTimer: ReturnType<typeof setTimeout> | undefined;
         const unsubscribe = subscribeSettings((values) => {
             currentValues = values;
             if (!loaded) return; // initial spawn (below) will pick these up
-            const sig = fflagSignature(values);
-            if (sig !== fflagsSig) {
-                fflagsSig = sig;
-                spawn();
-            } else {
-                client?.notifyConfigChanged();
-            }
+            // Debounce: text fields write on every keystroke, and a respawn or a
+            // full re-analysis per character would thrash the server.
+            clearTimeout(applyTimer);
+            applyTimer = setTimeout(() => {
+                const sig = fflagSignature(currentValues);
+                if (sig !== fflagsSig) {
+                    fflagsSig = sig;
+                    spawn();
+                } else {
+                    client?.notifyConfigChanged();
+                }
+            }, 250);
         });
 
         (async () => {
@@ -138,6 +144,7 @@ export function useLuauLsp(rootPath: string) {
 
         return () => {
             stopped = true;
+            clearTimeout(applyTimer);
             unsubscribe();
             dispose();
             setCurrentLspClient(null);

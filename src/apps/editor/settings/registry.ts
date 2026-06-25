@@ -4,6 +4,7 @@ import { ARGON_SETTINGS } from "./argon-config";
 import { APPEARANCE_SETTINGS } from "./appearance-config";
 import { EDITOR_SETTINGS } from "./editor-config";
 import { keybindSettings } from "./keybinds";
+import { toolOrder, categoryOrder } from "./settings-meta";
 
 const luauSettings: Setting[] = LUAU_SETTINGS.map((s) => ({
     key: s.key,
@@ -39,6 +40,14 @@ export function settingsNav(): NavTool[] {
         if (!tool.categories.includes(setting.category)) {
             tool.categories.push(setting.category);
         }
+    }
+    tools.sort((a, b) => toolOrder(a.name) - toolOrder(b.name));
+    for (const tool of tools) {
+        tool.categories.sort(
+            (a, b) =>
+                categoryOrder(tool.name, a) - categoryOrder(tool.name, b) ||
+                a.localeCompare(b),
+        );
     }
     return tools;
 }
