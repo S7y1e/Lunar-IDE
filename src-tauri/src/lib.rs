@@ -1,5 +1,6 @@
 mod process_guard;
 mod project;
+mod roblox_api;
 mod runtime;
 mod studio;
 mod terminal;
@@ -44,6 +45,7 @@ pub fn run() {
             project::index::project_member_usages,
             runtime::runtime_bridge_status,
             runtime::runtime_enqueue,
+            roblox_api::roblox_api,
             studio::studio_play
         ])
         .setup(|app| {
