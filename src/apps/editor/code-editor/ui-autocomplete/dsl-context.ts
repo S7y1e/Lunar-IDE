@@ -17,8 +17,6 @@ type Tok = { t: "id" | "str" | "p"; v: string; end: number };
 const ID_START = /[A-Za-z_]/;
 const ID = /[A-Za-z0-9_]/;
 
-const REACT_CALLS = new Set(["createElement", "e"]);
-
 // Identifiers that introduce an element, e.g. `New "X" {}` / `scope:New`. Seeded
 // with conventional names, then extended with file aliases (`local new = F.New`).
 function buildFactories(src: string): Map<string, Library> {
@@ -208,9 +206,15 @@ export function detectDslContext(src: string, offset: number): DslContext {
         const m = matchOpen(toks, b - 1);
         if (m >= 0) hydrate(m, b - 1); // :Hydrate(inst) {
     }
-    if (!className && !gui && parenCall?.call && REACT_CALLS.has(parenCall.call) && parenCall.firstStr) {
-        className = parenCall.firstStr;
-        library = "react";
+    // Comma call form `F("X", { … })`: React's createElement/e use it idiomatically.
+    // Also accept it for any other known factory (e.g. vide.create, Fusion.New) so
+    // completion still fires, even though those libs' canonical form is curried.
+    if (!className && !gui && parenCall?.call && parenCall.firstStr) {
+        const lib = factories.get(parenCall.call);
+        if (lib) {
+            className = parenCall.firstStr;
+            library = lib;
+        }
     }
     if ((!className && !gui) || !library) return null;
 
