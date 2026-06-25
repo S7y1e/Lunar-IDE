@@ -68,7 +68,7 @@
 
     &:hover {
         background: $hover;
-        color: #fff;
+        color: var(--text-bright);
     }
 }
 
@@ -82,7 +82,7 @@
     color: $accent;
 
     &:hover {
-        color: #fff;
+        color: var(--text-bright);
     }
 }
 
@@ -127,7 +127,7 @@
 
     &:hover {
         background: $hover;
-        color: #fff;
+        color: var(--text-bright);
     }
 }
 

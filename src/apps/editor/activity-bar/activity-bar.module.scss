@@ -23,13 +23,13 @@
     background: transparent;
     border: none;
     border-radius: 6px;
-    color: #fff;
+    color: var(--text-bright);
     cursor: pointer;
     font-size: 18px;
 
     &:hover {
         background: $hover;
-        color: #fff;
+        color: var(--text-bright);
     }
 }
 

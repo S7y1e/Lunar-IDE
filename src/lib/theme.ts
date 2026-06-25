@@ -1,20 +1,48 @@
 import { readSettings, subscribeSettings, SettingsValues } from "./settings";
 
-export type ThemeName = "nord" | "dracula";
+export type ThemeName =
+    | "luau"
+    | "luau-light"
+    | "nord"
+    | "dracula"
+    | "tokyo-night"
+    | "one-dark"
+    | "catppuccin-mocha"
+    | "gruvbox-dark";
 
-export const THEMES: ThemeName[] = ["nord", "dracula"];
+export const THEMES: ThemeName[] = [
+    "luau",
+    "luau-light",
+    "nord",
+    "dracula",
+    "tokyo-night",
+    "one-dark",
+    "catppuccin-mocha",
+    "gruvbox-dark",
+];
 export const DEFAULT_THEME: ThemeName = "nord";
 
 export const THEME_SETTING_KEY = "lunar.theme";
 
-/** Monaco editor theme id registered for each app theme. */
-export const MONACO_THEME: Record<ThemeName, string> = {
-    nord: "lunar-nord",
-    dracula: "lunar-dracula",
+/** Display names for the theme picker. */
+export const THEME_LABELS: Record<ThemeName, string> = {
+    luau: "Luau",
+    "luau-light": "Luau Light",
+    nord: "Nord",
+    dracula: "Dracula",
+    "tokyo-night": "Tokyo Night",
+    "one-dark": "One Dark",
+    "catppuccin-mocha": "Catppuccin Mocha",
+    "gruvbox-dark": "Gruvbox Dark",
 };
 
+/** Monaco editor theme id registered for each app theme. */
+export const MONACO_THEME: Record<ThemeName, string> = Object.fromEntries(
+    THEMES.map((name) => [name, `lunar-${name}`]),
+) as Record<ThemeName, string>;
+
 function normalize(value: unknown): ThemeName {
-    return value === "dracula" ? "dracula" : DEFAULT_THEME;
+    return THEMES.includes(value as ThemeName) ? (value as ThemeName) : DEFAULT_THEME;
 }
 
 let current: ThemeName = DEFAULT_THEME;

@@ -50,7 +50,7 @@
 
     &:hover {
         background: $hover;
-        color: #fff;
+        color: var(--text-bright);
     }
 }
 
@@ -171,7 +171,7 @@
     background: $bar;
     border: 1px solid $focus;
     border-radius: 3px;
-    color: #fff;
+    color: var(--text-bright);
     font-size: 13px;
     outline: none;
 }
