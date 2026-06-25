@@ -4,6 +4,7 @@ import Sidebar from "../file-tree/sidebar";
 import FindPanel from "../find/find-panel";
 import TodoPanel from "../todo/todo-panel";
 import StructurePanel from "../structure/structure-panel";
+import FigmaPanel from "../figma-import/figma-panel";
 import SyncPanel from "../sync/sync-panel";
 import ToolchainPanel from "../toolchain/toolchain-panel";
 import DataModelPanel from "../data-model/data-model-panel";
@@ -63,6 +64,8 @@ export default function ToolWindow(p: Props): ReactNode {
             return <TodoPanel root={p.path} onOpenAt={p.openFileAt} />;
         case "structure":
             return <StructurePanel activeFile={p.activeFile} onGoTo={p.goToLine} />;
+        case "figma":
+            return <FigmaPanel />;
         case "sync":
             return (
                 <SyncPanel

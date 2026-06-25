@@ -10,12 +10,17 @@ export function parseFigmaUrl(url: string): { fileKey: string; nodeId: string } 
     return { fileKey: key, nodeId: raw.replace("-", ":") };
 }
 
+// Caller injects fetch: global fetch in the CLI, tauri-plugin-http in the app
+// (the latter is native, so no CORS against api.figma.com).
+type FetchFn = typeof fetch;
+
 export async function fetchFrame(
     fileKey: string,
     nodeId: string,
     token: string,
+    fetchImpl: FetchFn = fetch,
 ): Promise<FigmaNode> {
-    const res = await fetch(
+    const res = await fetchImpl(
         `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}`,
         { headers: { "X-Figma-Token": token } },
     );

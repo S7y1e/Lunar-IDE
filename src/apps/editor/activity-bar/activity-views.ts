@@ -21,12 +21,14 @@ import {
     VscWarning,
     VscBeaker,
 } from "react-icons/vsc";
+import { FaFigma } from "react-icons/fa";
 
 export type ActivityViewId =
     | "project"
     | "search"
     | "todo"
     | "structure"
+    | "figma"
     | "datamodel"
     | "deps"
     | "insights"
@@ -70,6 +72,11 @@ export const ACTIVITY_VIEWS: ActivityView[] = [
         id: "structure",
         label: "Structure",
         icon: VscSymbolClass,
+    },
+    {
+        id: "figma",
+        label: "Figma",
+        icon: FaFigma,
     },
     {
         id: "datamodel",

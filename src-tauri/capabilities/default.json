@@ -59,6 +59,10 @@
         { "name": "binaries/rokit", "sidecar": true, "args": true }
       ]
     },
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "https://api.figma.com/*" }]
+    },
     "shell:allow-stdin-write",
     "shell:allow-kill",
     "shell:allow-open"
