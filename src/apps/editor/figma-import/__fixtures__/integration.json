@@ -1,0 +1,44 @@
+{
+    "id": "2:4",
+    "name": "Frame 1",
+    "type": "FRAME",
+    "clipsContent": true,
+    "fills": [{ "type": "SOLID", "color": { "r": 0.4663, "g": 0.4663, "b": 0.4663, "a": 1.0 } }],
+    "absoluteBoundingBox": { "x": 0.0, "y": 0.0, "width": 300.0, "height": 200.0 },
+    "children": [
+        {
+            "id": "2:6",
+            "name": "Frame 2",
+            "type": "FRAME",
+            "clipsContent": true,
+            "fills": [
+                { "type": "SOLID", "color": { "r": 0.4999, "g": 0.7115, "b": 0.3147, "a": 1.0 } }
+            ],
+            "absoluteBoundingBox": { "x": 199.0, "y": 16.0, "width": 77.0, "height": 29.0 },
+            "children": [
+                {
+                    "id": "2:7",
+                    "name": "text test",
+                    "type": "TEXT",
+                    "characters": "text test",
+                    "fills": [{ "type": "SOLID", "color": { "r": 1.0, "g": 1.0, "b": 1.0, "a": 1.0 } }],
+                    "style": {
+                        "fontFamily": "Inter",
+                        "fontSize": 12.0,
+                        "textAlignHorizontal": "LEFT"
+                    },
+                    "absoluteBoundingBox": { "x": 207.0, "y": 25.0, "width": 64.0, "height": 12.0 }
+                }
+            ]
+        },
+        {
+            "id": "2:8",
+            "name": "Button",
+            "type": "RECTANGLE",
+            "fills": [
+                { "type": "SOLID", "color": { "r": 0.851, "g": 0.851, "b": 0.851, "a": 1.0 } }
+            ],
+            "absoluteBoundingBox": { "x": 98.0, "y": 146.0, "width": 103.0, "height": 31.0 }
+        }
+    ]
+}
