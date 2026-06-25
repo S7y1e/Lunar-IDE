@@ -1,12 +1,15 @@
 // Pure, model-agnostic detector: given source text and a cursor offset, decide
-// whether the cursor sits inside a UI-library element props table and, if so,
-// which Roblox class it describes and whether a key or a value is expected.
+// whether the cursor sits inside a UI-library element (its class-name string, or
+// its props table) and, if so, which Roblox class and what is expected next.
 
 export type Library = "fusion" | "vide" | "react";
 
+// `gui: true` means the class is unknown (a Hydrate over an untyped instance) so
+// the provider should offer the union of GUI-class members.
 export type DslContext =
-    | { kind: "key"; className: string; library: Library }
-    | { kind: "value"; className: string; propName: string }
+    | { kind: "class"; library: Library }
+    | { kind: "key"; className?: string; gui?: boolean; library: Library }
+    | { kind: "value"; className?: string; gui?: boolean; propName: string }
     | null;
 
 type Tok = { t: "id" | "str" | "p"; v: string; end: number };
@@ -14,14 +17,30 @@ type Tok = { t: "id" | "str" | "p"; v: string; end: number };
 const ID_START = /[A-Za-z_]/;
 const ID = /[A-Za-z0-9_]/;
 
-// Map the element-factory identifier to its library. Conventional names; alias
-// detection (`local New = Fusion.New`) is left to a later cut.
-const FACTORY: Record<string, Library> = { New: "fusion", create: "vide" };
 const REACT_CALLS = new Set(["createElement", "e"]);
 
-function tokenize(src: string, limit: number): Tok[] {
+// Identifiers that introduce an element, e.g. `New "X" {}` / `scope:New`. Seeded
+// with conventional names, then extended with file aliases (`local new = F.New`).
+function buildFactories(src: string): Map<string, Library> {
+    const m = new Map<string, Library>([
+        ["New", "fusion"],
+        ["create", "vide"],
+        ["createElement", "react"],
+        ["e", "react"],
+    ]);
+    const re = /local\s+([A-Za-z_]\w*)\s*=\s*[^\n=]*[.:](New|create|Create|createElement)\b/g;
+    let mt: RegExpExecArray | null;
+    while ((mt = re.exec(src))) {
+        const member = mt[2];
+        m.set(mt[1], member === "New" ? "fusion" : member === "createElement" ? "react" : "vide");
+    }
+    return m;
+}
+
+function tokenize(src: string, limit: number): { toks: Tok[]; openStr: boolean } {
     const toks: Tok[] = [];
     let i = 0;
+    let openStr = false;
     while (i < limit) {
         const c = src[i];
         if (c === " " || c === "\t" || c === "\r" || c === "\n") {
@@ -47,6 +66,7 @@ function tokenize(src: string, limit: number): Tok[] {
                 if (src[i] === "\\") i++;
                 i++;
             }
+            openStr = i >= limit; // ran into the cursor before the closing quote
             toks.push({ t: "str", v: src.slice(start, i), end: i + 1 });
             i++;
             continue;
@@ -74,7 +94,18 @@ function tokenize(src: string, limit: number): Tok[] {
         toks.push({ t: "p", v: c, end: i + 1 });
         i++;
     }
-    return toks;
+    return { toks, openStr };
+}
+
+// Index of the `(` matching the `)` at `closeIdx`, or -1.
+function matchOpen(toks: Tok[], closeIdx: number): number {
+    let depth = 0;
+    for (let k = closeIdx; k >= 0; k--) {
+        if (toks[k].t !== "p") continue;
+        if (toks[k].v === ")") depth++;
+        else if (toks[k].v === "(" && --depth === 0) return k;
+    }
+    return -1;
 }
 
 // `[[`, `[=[`, ... -> the matching close (`]]`, `]=]`). Null if not a long open.
@@ -87,7 +118,17 @@ function longClose(src: string, i: number): string | null {
 }
 
 export function detectDslContext(src: string, offset: number): DslContext {
-    const toks = tokenize(src, offset);
+    const factories = buildFactories(src);
+    const { toks, openStr } = tokenize(src, offset);
+
+    // Cursor inside the factory's class-name string -> complete the class name.
+    // Covers curried `New "Text¦` and call form `New("Text¦`.
+    if (openStr && toks[toks.length - 1]?.t === "str") {
+        const prev = toks[toks.length - 2];
+        let lib = factories.get(prev?.v ?? "");
+        if (!lib && prev?.v === "(") lib = factories.get(toks[toks.length - 3]?.v ?? "");
+        if (lib) return { kind: "class", library: lib };
+    }
 
     // Walk forward, tracking the bracket stack. Each `(` frame remembers the call
     // name and its first string arg so React's `createElement("X", { … })` table
@@ -98,7 +139,6 @@ export function detectDslContext(src: string, offset: number): DslContext {
         const tk = toks[k];
         if (tk.t === "str") {
             const top = stack[stack.length - 1];
-            // first argument of a call, e.g. createElement("X", …)
             if (top?.open === "(" && top.firstStr === undefined && top.idx === k - 1) {
                 top.firstStr = tk.v;
             }
@@ -132,22 +172,47 @@ export function detectDslContext(src: string, offset: number): DslContext {
     }
     if (!brace) return null;
 
-    // Resolve class name + library for this `{`.
-    const before = toks[brace.idx - 1];
+    // Resolve class name + library for this `{`. Forms: `F "X" {`, `F "X" ({`,
+    // `F("X")({`, React `createElement("X", {`, and Fusion `:Hydrate(inst)({`.
+    const b = brace.idx;
+    const before = toks[b - 1];
     let className: string | undefined;
     let library: Library | undefined;
-    if (before?.t === "str" && toks[brace.idx - 2]?.t === "id") {
-        const factory = FACTORY[toks[brace.idx - 2].v];
-        if (factory) {
-            className = before.v;
-            library = factory;
+    let gui = false;
+    const fac = (i: number) => factories.get(toks[i]?.v ?? "");
+    const hydrate = (callOpen: number, callClose: number): boolean => {
+        if (toks[callOpen - 1]?.v !== "Hydrate" || toks[callOpen - 2]?.v !== ":") return false;
+        library = "fusion";
+        const resolved = hydrateClass(toks.slice(callOpen + 1, callClose), src);
+        if (resolved) className = resolved;
+        else gui = true;
+        return true;
+    };
+    if (before?.t === "str" && fac(b - 2)) {
+        className = before.v;
+        library = fac(b - 2);
+    } else if (before?.v === "(") {
+        if (toks[b - 2]?.t === "str" && fac(b - 3)) {
+            className = toks[b - 2].v; // F "X" ({
+            library = fac(b - 3);
+        } else if (toks[b - 2]?.v === ")") {
+            const m = matchOpen(toks, b - 2);
+            if (m >= 0 && toks[m + 1]?.t === "str" && fac(m - 1)) {
+                className = toks[m + 1].v; // F("X")({
+                library = fac(m - 1);
+            } else if (m >= 0) {
+                hydrate(m, b - 2); // :Hydrate(inst)({
+            }
         }
+    } else if (before?.v === ")") {
+        const m = matchOpen(toks, b - 1);
+        if (m >= 0) hydrate(m, b - 1); // :Hydrate(inst) {
     }
-    if (!className && parenCall?.call && REACT_CALLS.has(parenCall.call) && parenCall.firstStr) {
+    if (!className && !gui && parenCall?.call && REACT_CALLS.has(parenCall.call) && parenCall.firstStr) {
         className = parenCall.firstStr;
         library = "react";
     }
-    if (!className || !library) return null;
+    if ((!className && !gui) || !library) return null;
 
     // Key vs value: look at tokens after the last entry separator inside the `{`.
     let sep = brace.idx;
@@ -164,8 +229,25 @@ export function detectDslContext(src: string, offset: number): DslContext {
     const eq = entry.findIndex((t) => t.t === "p" && t.v === "=");
     if (eq >= 0) {
         const key = entry[eq - 1];
-        if (key?.t === "id") return { kind: "value", className, propName: key.v };
+        if (key?.t === "id") return { kind: "value", className, gui, propName: key.v };
         return null;
     }
-    return { kind: "key", className, library };
+    return { kind: "key", className, gui, library };
+}
+
+// Resolve the Roblox class of a Hydrate target from a type annotation or cast,
+// e.g. `Hydrate(x :: TextLabel)`, `local x: TextLabel`, `local x = … :: TextLabel`.
+function hydrateClass(argToks: Tok[], src: string): string | undefined {
+    for (let i = 0; i < argToks.length - 2; i++) {
+        if (argToks[i].v === ":" && argToks[i + 1].v === ":" && argToks[i + 2].t === "id") {
+            return argToks[i + 2].v;
+        }
+    }
+    const id = argToks.find((t) => t.t === "id");
+    if (!id) return undefined;
+    const v = id.v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(
+        `(?:local\\s+${v}\\s*:|local\\s+${v}\\s*=[^\\n]*::|[(,]\\s*${v}\\s*:)\\s*([A-Za-z_]\\w*)`
+    );
+    return re.exec(src)?.[1];
 }

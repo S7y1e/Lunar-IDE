@@ -13,6 +13,7 @@ export type ClassMembers = { props: Prop[]; events: string[] };
 export type RobloxModel = {
     creatable: Set<string>;
     membersOf(className: string): ClassMembers | null;
+    guiMembers(): ClassMembers;
     enumMembers(enumName: string): string[] | null;
 };
 
@@ -51,9 +52,37 @@ async function build(): Promise<RobloxModel | null> {
             return out;
         };
 
+        const isGui = (className: string): boolean => {
+            let cur: string | undefined = className;
+            while (cur) {
+                if (cur === "GuiObject") return true;
+                cur = classes.get(cur)?.extends;
+            }
+            return false;
+        };
+
+        let guiUnion: ClassMembers | null = null;
+        const guiMembers = (): ClassMembers => {
+            if (guiUnion) return guiUnion;
+            const props: Prop[] = [];
+            const events: string[] = [];
+            const sp = new Set<string>();
+            const se = new Set<string>();
+            for (const c of raw.classes) {
+                if (!isGui(c.name)) continue;
+                const m = membersOf(c.name);
+                if (!m) continue;
+                for (const p of m.props) if (!sp.has(p.name)) (sp.add(p.name), props.push(p));
+                for (const e of m.events) if (!se.has(e)) (se.add(e), events.push(e));
+            }
+            guiUnion = { props, events };
+            return guiUnion;
+        };
+
         return {
             creatable: new Set(raw.creatable),
             membersOf,
+            guiMembers,
             enumMembers: (n) => enums.get(n) ?? null,
         };
     } catch (e) {

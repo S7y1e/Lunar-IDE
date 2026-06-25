@@ -1,6 +1,6 @@
 import * as monaco from "monaco-editor";
 import { detectDslContext, type Library } from "./dsl-context";
-import { loadRobloxModel, type RobloxModel } from "./model";
+import { loadRobloxModel, type ClassMembers, type RobloxModel } from "./model";
 
 const LANGUAGES = ["lua", "luau"];
 const Kind = monaco.languages.CompletionItemKind;
@@ -25,14 +25,22 @@ function range(model: monaco.editor.ITextModel, position: monaco.IPosition): mon
     };
 }
 
+function classItems(api: RobloxModel, r: monaco.IRange): monaco.languages.CompletionItem[] {
+    return [...api.creatable].map((name) => ({
+        label: name,
+        kind: Kind.Class,
+        insertText: name,
+        detail: "Instance",
+        range: r,
+    }));
+}
+
 function keyItems(
-    api: RobloxModel,
-    className: string,
+    members: ClassMembers,
+    detailFor: string,
     library: Library,
     r: monaco.IRange
 ): monaco.languages.CompletionItem[] {
-    const members = api.membersOf(className);
-    if (!members) return [];
     const items: monaco.languages.CompletionItem[] = [];
 
     for (const p of members.props) {
@@ -41,7 +49,7 @@ function keyItems(
             kind: Kind.Property,
             insertText: `${p.name} = $0`,
             insertTextRules: SNIPPET,
-            detail: p.enumName ? `Enum.${p.enumName}` : className,
+            detail: p.enumName ? `Enum.${p.enumName}` : detailFor,
             sortText: "0" + p.name,
             range: r,
         });
@@ -57,7 +65,7 @@ function keyItems(
             kind: Kind.Event,
             insertText: insert,
             insertTextRules: SNIPPET,
-            detail: `${className} event`,
+            detail: `${detailFor} event`,
             sortText: "1" + e,
             range: r,
         });
@@ -82,12 +90,11 @@ function keyItems(
 
 function valueItems(
     api: RobloxModel,
-    className: string,
+    members: ClassMembers,
     propName: string,
     r: monaco.IRange
 ): monaco.languages.CompletionItem[] {
-    const members = api.membersOf(className);
-    const prop = members?.props.find((p) => p.name === propName);
+    const prop = members.props.find((p) => p.name === propName);
     if (!prop?.enumName) return [];
     const enumMembers = api.enumMembers(prop.enumName);
     if (!enumMembers) return [];
@@ -113,12 +120,20 @@ export function registerUiAutocomplete(): monaco.IDisposable[] {
                 const offset = model.getOffsetAt(position);
                 const ctx = detectDslContext(model.getValue(), offset);
                 if (!ctx) return null;
-                if (!api.creatable.has(ctx.className) && !api.membersOf(ctx.className)) return null;
                 const r = range(model, position);
+                if (ctx.kind === "class") return { suggestions: classItems(api, r) };
+
+                const members = ctx.gui
+                    ? api.guiMembers()
+                    : ctx.className
+                      ? api.membersOf(ctx.className)
+                      : null;
+                if (!members) return null;
+                const label = ctx.gui ? "GuiObject" : ctx.className!;
                 const suggestions =
                     ctx.kind === "key"
-                        ? keyItems(api, ctx.className, ctx.library, r)
-                        : valueItems(api, ctx.className, ctx.propName, r);
+                        ? keyItems(members, label, ctx.library, r)
+                        : valueItems(api, members, ctx.propName, r);
                 return { suggestions };
             },
         })
