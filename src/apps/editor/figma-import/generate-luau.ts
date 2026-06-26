@@ -20,6 +20,24 @@ function luauStr(s: string): string {
     return JSON.stringify(s); // double-quoted with \n/\" escapes — valid Luau
 }
 
+// Figma numeric weight -> nearest Enum.FontWeight name.
+const WEIGHTS: [number, string][] = [
+    [100, "Thin"],
+    [200, "ExtraLight"],
+    [300, "Light"],
+    [400, "Regular"],
+    [500, "Medium"],
+    [600, "SemiBold"],
+    [700, "Bold"],
+    [800, "ExtraBold"],
+    [900, "Heavy"],
+];
+function fontWeight(w: number): string {
+    return WEIGHTS.reduce((best, cur) =>
+        Math.abs(cur[0] - w) < Math.abs(best[0] - w) ? cur : best,
+    )[1];
+}
+
 function isText(cls: string): boolean {
     return cls === "TextLabel" || cls === "TextButton" || cls === "TextBox";
 }
@@ -31,7 +49,9 @@ function isImage(cls: string): boolean {
 const BUILDER = [
     "local function build(s, parent)",
     "\tlocal i = Instance.new(s[1])",
-    "\tif s[2] then for k, v in pairs(s[2]) do i[k] = v end end",
+    // FontFace throws on an unavailable family/weight; pcall it so one bad font
+    // can't abort the whole build (the root is parented last).
+    '\tif s[2] then for k, v in pairs(s[2]) do if k == "FontFace" then pcall(function() i.FontFace = v end) else i[k] = v end end end',
     "\tif s[4] then for k, v in pairs(s[4]) do i:SetAttribute(k, v) end end",
     "\tif s[3] then for _, c in ipairs(s[3]) do build(c, i) end end",
     "\ti.Parent = parent",
@@ -71,7 +91,12 @@ export function generateLuau(tree: UiNode, opts: CodegenOptions): string {
             if (p.text !== undefined) props.push(`Text = ${luauStr(p.text)}`);
             if (p.textColor) props.push(`TextColor3 = ${rgb(p.textColor)}`);
             if (p.textSize) props.push(`TextSize = ${p.textSize}`);
-            if (p.font) props.push(`Font = Enum.Font.${p.font}`);
+            if (p.font) {
+                const style = p.font.italic ? "Italic" : "Normal";
+                props.push(
+                    `FontFace = Font.new(${luauStr(p.font.family)}, Enum.FontWeight.${fontWeight(p.font.weight)}, Enum.FontStyle.${style})`,
+                );
+            }
             if (p.textXAlign) props.push(`TextXAlignment = Enum.TextXAlignment.${p.textXAlign}`);
         }
         if (p.backgroundColor) props.push(`BackgroundColor3 = ${rgb(p.backgroundColor)}`);

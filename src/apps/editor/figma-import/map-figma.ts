@@ -1,7 +1,15 @@
 // Figma node tree -> normalized Roblox UI tree. Class is auto-inferred from the
 // Figma node type; `@ClassName` in the layer name overrides it.
 
-import type { FigmaFill, FigmaNode, RobloxClass, Rect, UiNode, UiProps } from "./figma-types";
+import type {
+    FigmaFill,
+    FigmaNode,
+    FigmaStyle,
+    RobloxClass,
+    Rect,
+    UiNode,
+    UiProps,
+} from "./figma-types";
 import { parseName } from "./naming";
 
 function rgb(c: { r: number; g: number; b: number }): [number, number, number] {
@@ -22,17 +30,34 @@ function gradientAngle(t?: number[][]): number {
     return Math.round((Math.atan2(t[1][0], t[0][0]) * 180) / Math.PI);
 }
 
-// Figma has no Roblox font enum; map common families, fall back to Gotham.
-const FONTS: Record<string, string> = {
-    inter: "Gotham",
-    roboto: "Gotham",
-    montserrat: "Gotham",
-    arial: "Arial",
-    "source sans pro": "SourceSans",
-    "source sans": "SourceSans",
+// Roblox built-in font family files are the family name in PascalCase with spaces
+// removed (e.g. "Fredoka One" -> FredokaOne.json), so we derive the file name and
+// only need this table to remap web fonts Roblox lacks to the closest built-in.
+// A wrong guess is harmless: codegen sets FontFace under pcall, so it just falls
+// back to the default font instead of erroring.
+const FONT_ALIASES: Record<string, string> = {
+    inter: "BuilderSans",
+    poppins: "Montserrat", // geometric sans, closest built-in
+    "open sans": "SourceSansPro",
+    "source sans": "SourceSansPro",
+    lato: "SourceSansPro",
+    gotham: "BuilderSans",
+    arial: "Arimo",
+    helvetica: "Arimo",
 };
-function mapFont(family?: string): string {
-    return (family && FONTS[family.toLowerCase()]) || "Gotham";
+function familyFile(family?: string): string {
+    const key = (family ?? "").toLowerCase().trim();
+    if (FONT_ALIASES[key]) return FONT_ALIASES[key];
+    const derived = (family ?? "").replace(/[^A-Za-z0-9 ]/g, "").replace(/\s+/g, "");
+    return derived || "BuilderSans";
+}
+function mapFont(style?: FigmaStyle): NonNullable<UiProps["font"]> {
+    const italic = style?.italic ?? /italic|oblique/i.test(style?.fontPostScriptName ?? "");
+    return {
+        family: `rbxasset://fonts/families/${familyFile(style?.fontFamily)}.json`,
+        weight: style?.fontWeight ?? 400,
+        italic,
+    };
 }
 
 function buildProps(node: FigmaNode, cls: RobloxClass): UiProps {
@@ -45,7 +70,7 @@ function buildProps(node: FigmaNode, cls: RobloxClass): UiProps {
         if (node.characters !== undefined) p.text = node.characters;
         if (fill?.color) p.textColor = rgb(fill.color);
         if (node.style?.fontSize) p.textSize = Math.round(node.style.fontSize);
-        p.font = mapFont(node.style?.fontFamily);
+        p.font = mapFont(node.style);
         const a = node.style?.textAlignHorizontal;
         p.textXAlign = a === "CENTER" ? "Center" : a === "RIGHT" ? "Right" : "Left";
     } else if (fill?.color) {

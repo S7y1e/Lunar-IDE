@@ -45,7 +45,10 @@ const text = frame2.children[0];
 ok(text.className === "TextLabel", "text -> TextLabel");
 ok(text.props.text === "text test", "text content");
 ok(text.pos.x === 8 && text.pos.y === 9, "text relative to Frame 2");
-ok(text.props.font === "Gotham", "Inter -> Gotham fallback");
+ok(
+    text.props.font?.family === "rbxasset://fonts/families/BuilderSans.json",
+    "Inter -> BuilderSans FontFace",
+);
 
 const button = tree.children[1];
 ok(button.className === "Frame", "plain rectangle 'Button' -> Frame (no auto-button)");

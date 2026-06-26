@@ -26,6 +26,9 @@ export interface Rect {
 
 export interface FigmaStyle {
     fontFamily?: string;
+    fontPostScriptName?: string; // e.g. "Montserrat-BoldItalic" — used to detect italic
+    fontWeight?: number; // 100-900
+    italic?: boolean;
     fontSize?: number;
     textAlignHorizontal?: string; // LEFT | CENTER | RIGHT | JUSTIFIED
 }
@@ -78,7 +81,7 @@ export interface UiProps {
     text?: string;
     textColor?: [number, number, number];
     textSize?: number;
-    font?: string;
+    font?: { family: string; weight: number; italic: boolean }; // family = rbxasset font URI
     textXAlign?: "Left" | "Center" | "Right";
     layout?: { dir: "Horizontal" | "Vertical"; spacing: number };
     hasImageFill?: boolean; // needs a placeholder image; filled in the asset pass
