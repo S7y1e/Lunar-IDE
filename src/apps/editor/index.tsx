@@ -42,6 +42,7 @@ import EditorOverlays from "./editor-overlays";
 import FigmaPreview from "./figma-import/figma-preview";
 import { mapFigma } from "./figma-import/map-figma";
 import { type FigmaNode, type UiNode } from "./figma-import/figma-types";
+import { type FigmaImage } from "./figma-import/upload-image";
 import { ProjectProvider, useProject } from "../../lib/project";
 
 type Props = {
@@ -66,6 +67,7 @@ function EditorBody({ path }: Props) {
     const [renaming, setRenaming] = useState(false);
     const [cursor, setCursor] = useState<{ line: number; column: number } | null>(null);
     const [figmaPreview, setFigmaPreview] = useState<UiNode | null>(null);
+    const [figmaImages, setFigmaImages] = useState<FigmaImage[]>([]);
 
     const sync = useSyncServer(path);
     const runtime = useRuntimeBridge();
@@ -88,12 +90,24 @@ function EditorBody({ path }: Props) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [project?.root]);
 
-    // The Figma plugin POSTs the selected frame to the bridge; map it and open the preview.
+    // The Figma plugin POSTs { root, images } to the bridge; map it and open the preview.
     useEffect(() => {
-        const un = listen<FigmaNode>("figma://import", (e) => {
-            const t = mapFigma(e.payload);
-            if (t) setFigmaPreview(t);
-        });
+        const un = listen<{ root?: FigmaNode; image?: FigmaImage } | FigmaNode>(
+            "figma://import",
+            (e) => {
+                const payload = e.payload as { root?: FigmaNode; image?: FigmaImage };
+                if (payload.image) {
+                    setFigmaImages((prev) => [...prev, payload.image!]); // stream in after the tree
+                    return;
+                }
+                const root = (payload.root ?? payload) as FigmaNode;
+                const t = mapFigma(root);
+                if (t) {
+                    setFigmaImages([]);
+                    setFigmaPreview(t);
+                }
+            },
+        );
         return () => {
             un.then((f) => f());
         };
@@ -259,7 +273,10 @@ function EditorBody({ path }: Props) {
             renameNode={renameNode}
             onToggleTerminal={() => layout.toggle("terminal")}
             onStudioPlay={studioPlay}
-            onFigmaPreview={setFigmaPreview}
+            onFigmaPreview={(t) => {
+                setFigmaImages([]);
+                setFigmaPreview(t);
+            }}
         />
     );
 
@@ -351,7 +368,11 @@ function EditorBody({ path }: Props) {
                 toasts={toasts}
             />
 
-            <FigmaPreview tree={figmaPreview} onClose={() => setFigmaPreview(null)} />
+            <FigmaPreview
+                tree={figmaPreview}
+                images={figmaImages}
+                onClose={() => setFigmaPreview(null)}
+            />
         </div>
     );
 }

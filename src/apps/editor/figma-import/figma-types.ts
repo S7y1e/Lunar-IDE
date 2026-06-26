@@ -35,6 +35,8 @@ export interface FigmaNode {
     children?: FigmaNode[];
     absoluteBoundingBox?: Rect;
     fills?: FigmaFill[];
+    strokes?: FigmaFill[];
+    strokeWeight?: number;
     clipsContent?: boolean;
     cornerRadius?: number;
     rectangleCornerRadii?: number[];
@@ -43,6 +45,7 @@ export interface FigmaNode {
     layoutMode?: string; // HORIZONTAL | VERTICAL | NONE
     itemSpacing?: number;
     interactions?: unknown[]; // prototype reactions => button signal
+    imageHash?: string; // set by the Figma plugin when it exported this node as PNG
 }
 
 export type RobloxClass =
@@ -60,7 +63,9 @@ export interface UiProps {
     backgroundColor?: [number, number, number]; // 0-255
     backgroundTransparency?: number;
     clipsDescendants?: boolean;
-    cornerRadius?: number;
+    cornerRadius?: number; // uniform (also = max of cornerRadii, for Roblox UICorner)
+    cornerRadii?: [number, number, number, number]; // per-corner TL,TR,BR,BL (preview only)
+    stroke?: { color: [number, number, number]; thickness: number };
     text?: string;
     textColor?: [number, number, number];
     textSize?: number;
@@ -68,6 +73,7 @@ export interface UiProps {
     textXAlign?: "Left" | "Center" | "Right";
     layout?: { dir: "Horizontal" | "Vertical"; spacing: number };
     hasImageFill?: boolean; // needs a placeholder image; filled in the asset pass
+    imageHash?: string; // exported PNG hash -> tag the instance so upload can fill it
 }
 
 export interface UiNode {

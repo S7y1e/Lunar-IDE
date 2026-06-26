@@ -4,8 +4,6 @@
 import type { FigmaFill, FigmaNode, RobloxClass, Rect, UiNode, UiProps } from "./figma-types";
 import { parseName } from "./naming";
 
-const BTN = /button|btn|cta/i;
-
 function rgb(c: { r: number; g: number; b: number }): [number, number, number] {
     return [Math.round(c.r * 255), Math.round(c.g * 255), Math.round(c.b * 255)];
 }
@@ -31,22 +29,13 @@ function mapFont(family?: string): string {
     return (family && FONTS[family.toLowerCase()]) || "Gotham";
 }
 
-// Signals ranked: prototype interaction / name => button; else fill/type.
+// Text -> TextLabel, anything exported/image-filled -> ImageLabel, else a Frame
+// (frames, groups, solid shapes). Buttons are NOT auto-detected — opt in per node
+// via the `@ImageButton` / `@TextButton` name directive.
 function classify(node: FigmaNode): RobloxClass {
-    const button = BTN.test(node.name) || (node.interactions?.length ?? 0) > 0;
-    const img = hasImageFill(node.fills);
-    if (node.type === "TEXT") return button ? "TextButton" : "TextLabel";
-    if (button) return "ImageButton";
-    if (img) return "ImageLabel";
-    switch (node.type) {
-        case "FRAME":
-        case "GROUP":
-        case "COMPONENT":
-        case "INSTANCE":
-            return "Frame";
-        default: // RECTANGLE / VECTOR / ELLIPSE / LINE / ... -> a graphic
-            return "ImageLabel";
-    }
+    if (node.type === "TEXT") return "TextLabel";
+    if (hasImageFill(node.fills) || node.imageHash) return "ImageLabel";
+    return "Frame";
 }
 
 function buildProps(node: FigmaNode, cls: RobloxClass): UiProps {
@@ -70,9 +59,19 @@ function buildProps(node: FigmaNode, cls: RobloxClass): UiProps {
         p.backgroundTransparency = 1;
     }
 
+    const sf = solidFill(node.strokes);
+    if (sf?.color && node.strokeWeight) {
+        p.stroke = { color: rgb(sf.color), thickness: Math.max(1, Math.round(node.strokeWeight)) };
+    }
+
     if (node.clipsContent) p.clipsDescendants = true;
-    const r = node.cornerRadius ?? node.rectangleCornerRadii?.[0];
-    if (r) p.cornerRadius = r;
+    if (typeof node.cornerRadius === "number" && node.cornerRadius > 0) {
+        p.cornerRadius = node.cornerRadius;
+    } else if (node.rectangleCornerRadii?.some((x) => x > 0)) {
+        const rr = node.rectangleCornerRadii;
+        p.cornerRadii = [rr[0], rr[1], rr[2], rr[3]]; // per-corner for the preview
+        p.cornerRadius = Math.max(...rr); // uniform approximation for Roblox UICorner
+    }
     if (node.layoutMode === "HORIZONTAL" || node.layoutMode === "VERTICAL") {
         p.layout = {
             dir: node.layoutMode === "HORIZONTAL" ? "Horizontal" : "Vertical",
@@ -80,6 +79,7 @@ function buildProps(node: FigmaNode, cls: RobloxClass): UiProps {
         };
     }
     if (hasImageFill(node.fills)) p.hasImageFill = true;
+    if (node.imageHash) p.imageHash = node.imageHash;
     return p;
 }
 

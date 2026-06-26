@@ -48,6 +48,6 @@ ok(text.pos.x === 8 && text.pos.y === 9, "text relative to Frame 2");
 ok(text.props.font === "Gotham", "Inter -> Gotham fallback");
 
 const button = tree.children[1];
-ok(button.className === "ImageButton", "named 'Button' -> ImageButton");
+ok(button.className === "Frame", "plain rectangle 'Button' -> Frame (no auto-button)");
 
 console.log(fail === 0 ? "\nALL OK" : `\n${fail} FAILED`);

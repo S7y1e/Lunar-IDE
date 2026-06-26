@@ -3,6 +3,8 @@ import { FaFigma } from "react-icons/fa";
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import { fetchFrame, parseFigmaUrl } from "./figma-client";
 import { mapFigma } from "./map-figma";
+import { runtimeEnqueue } from "../../../lib/project";
+import { UPLOAD_SPIKE } from "./upload-spike";
 import type { UiNode } from "./figma-types";
 import styles from "./figma.module.scss";
 
@@ -107,6 +109,14 @@ export default function FigmaPanel({ onPreview }: { onPreview: (tree: UiNode) =>
             ) : (
                 !error && <div className={styles.empty}>Paste a frame URL and token, then Load.</div>
             )}
+
+            <button
+                className={styles.reopen}
+                onClick={() => runtimeEnqueue({ type: "eval", code: UPLOAD_SPIKE }).catch(() => {})}
+                title="Studio must be connected; watch the Runtime panel for the result"
+            >
+                Test image upload (spike)
+            </button>
         </div>
     );
 }

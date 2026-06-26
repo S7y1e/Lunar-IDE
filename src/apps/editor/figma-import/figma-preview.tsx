@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import { VscClose } from "react-icons/vsc";
 import { generateLuau } from "./generate-luau";
 import { runtimeEnqueue } from "../../../lib/project";
+import { buildUploadLuau, pngToRgba, type FigmaImage } from "./upload-image";
 import type { UiNode } from "./figma-types";
 import styles from "./figma-preview.module.scss";
 
@@ -23,7 +24,7 @@ function NodeView({ n }: { n: UiNode }) {
         top: n.pos.y,
         width: n.size.w,
         height: n.size.h,
-        borderRadius: p.cornerRadius,
+        borderRadius: p.cornerRadii ? p.cornerRadii.map((r) => `${r}px`).join(" ") : p.cornerRadius,
         overflow: p.clipsDescendants ? "hidden" : undefined,
     };
     // Background transparency is the FILL's alpha, not the whole element's opacity
@@ -32,6 +33,7 @@ function NodeView({ n }: { n: UiNode }) {
         const a = p.backgroundTransparency !== undefined ? 1 - p.backgroundTransparency : 1;
         style.background = `rgba(${p.backgroundColor.join(", ")}, ${a})`;
     }
+    if (p.stroke) style.border = `${p.stroke.thickness}px solid rgb(${p.stroke.color.join(", ")})`;
 
     const placeholder = isImage(n.className) && p.hasImageFill ? styles.placeholder : undefined;
 
@@ -61,7 +63,15 @@ function NodeView({ n }: { n: UiNode }) {
     );
 }
 
-export default function FigmaPreview({ tree, onClose }: { tree: UiNode | null; onClose: () => void }) {
+export default function FigmaPreview({
+    tree,
+    images,
+    onClose,
+}: {
+    tree: UiNode | null;
+    images: FigmaImage[];
+    onClose: () => void;
+}) {
     const [rootMode, setRootMode] = useState<RootMode>("ScreenGui");
     const [sizeMode, setSizeMode] = useState<SizeMode>("Scaled");
     const [sent, setSent] = useState(false);
@@ -92,9 +102,22 @@ export default function FigmaPreview({ tree, onClose }: { tree: UiNode | null; o
 
     if (!tree) return null;
 
-    const send = () => {
+    const send = async () => {
         const code = generateLuau(tree, { root: rootMode, mode: sizeMode });
         runtimeEnqueue({ type: "eval", code }).catch(() => {});
+        // Upload each image: decode PNG -> RGBA here, then a Luau eval rebuilds the
+        // pixels in Studio, uploads via CreateAssetAsync, and applies by LunarImage tag.
+        for (const im of images) {
+            try {
+                const { rgba, w, h } = await pngToRgba(im.png);
+                runtimeEnqueue({ type: "eval", code: buildUploadLuau(rgba, w, h, im.hash) }).catch(
+                    () => {},
+                );
+                await new Promise((r) => setTimeout(r, 250)); // spread out so polls drain incrementally
+            } catch {
+                /* skip images that fail to decode */
+            }
+        }
         setSent(true);
         setTimeout(() => setSent(false), 2000);
     };
