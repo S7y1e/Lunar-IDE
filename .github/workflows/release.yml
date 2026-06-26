@@ -109,8 +109,35 @@ jobs:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
 
-  publish-release:
+  checksums:
     needs: [create-release, build]
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+    steps:
+      - name: Generate SHA256SUMS
+        run: |
+          set -euo pipefail
+          gh api "repos/${REPO}/releases/${RELEASE_ID}/assets" --paginate \
+            --jq '.[] | select(.name != "SHA256SUMS") | "\(.id)\t\(.name)"' > /tmp/assets.tsv
+          mkdir -p assets && cd assets
+          while IFS=$'\t' read -r id name; do
+            [ -z "$id" ] && continue
+            echo "Fetching $name"
+            gh api "repos/${REPO}/releases/assets/${id}" \
+              -H "Accept: application/octet-stream" > "$name"
+          done < /tmp/assets.tsv
+          sha256sum * > ../SHA256SUMS
+          cd ..
+          echo "----- SHA256SUMS -----"
+          cat SHA256SUMS
+          TAG=$(gh api "repos/${REPO}/releases/${RELEASE_ID}" --jq .tag_name)
+          gh release upload "$TAG" SHA256SUMS --clobber --repo "$REPO"
+
+  publish-release:
+    needs: [create-release, build, checksums]
     runs-on: ubuntu-latest
     steps:
       - name: Publish release
