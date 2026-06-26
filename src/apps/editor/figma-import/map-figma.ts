@@ -1,5 +1,5 @@
-// Figma node tree -> normalized Roblox UI tree. The classification is a
-// best-guess; the review UI lets the user override per node before codegen.
+// Figma node tree -> normalized Roblox UI tree. The class comes from the layer
+// name (`@ImageButton`, ...); nodes without one are dropped (root defaults to Frame).
 
 import type { FigmaFill, FigmaNode, RobloxClass, Rect, UiNode, UiProps } from "./figma-types";
 import { parseName } from "./naming";
@@ -16,6 +16,12 @@ function hasImageFill(fills?: FigmaFill[]): boolean {
     return !!fills?.some((f) => f.visible !== false && f.type === "IMAGE");
 }
 
+// Linear-gradient axis direction -> UIGradient rotation in degrees.
+function gradientAngle(t?: number[][]): number {
+    if (!t || !t[0] || !t[1]) return 0;
+    return Math.round((Math.atan2(t[1][0], t[0][0]) * 180) / Math.PI);
+}
+
 // Figma has no Roblox font enum; map common families, fall back to Gotham.
 const FONTS: Record<string, string> = {
     inter: "Gotham",
@@ -27,15 +33,6 @@ const FONTS: Record<string, string> = {
 };
 function mapFont(family?: string): string {
     return (family && FONTS[family.toLowerCase()]) || "Gotham";
-}
-
-// Text -> TextLabel, anything exported/image-filled -> ImageLabel, else a Frame
-// (frames, groups, solid shapes). Buttons are NOT auto-detected — opt in per node
-// via the `@ImageButton` / `@TextButton` name directive.
-function classify(node: FigmaNode): RobloxClass {
-    if (node.type === "TEXT") return "TextLabel";
-    if (hasImageFill(node.fills) || node.imageHash) return "ImageLabel";
-    return "Frame";
 }
 
 function buildProps(node: FigmaNode, cls: RobloxClass): UiProps {
@@ -56,12 +53,49 @@ function buildProps(node: FigmaNode, cls: RobloxClass): UiProps {
         const a = fill.color.a ?? 1;
         if (a < 1) p.backgroundTransparency = +(1 - a).toFixed(2);
     } else {
-        p.backgroundTransparency = 1;
+        const gf = node.fills?.find((f) => f.visible !== false && f.type.startsWith("GRADIENT"));
+        if (gf?.gradientStops && gf.gradientStops.length >= 2) {
+            p.backgroundColor = [255, 255, 255]; // white so the UIGradient shows at full colour
+            p.gradient = {
+                stops: gf.gradientStops.map((s) => ({
+                    pos: Math.min(1, Math.max(0, s.position)),
+                    color: rgb(s.color),
+                })),
+                rotation: gradientAngle(gf.gradientTransform),
+            };
+        } else {
+            p.backgroundTransparency = 1;
+        }
     }
 
-    const sf = solidFill(node.strokes);
-    if (sf?.color && node.strokeWeight) {
-        p.stroke = { color: rgb(sf.color), thickness: Math.max(1, Math.round(node.strokeWeight)) };
+    const sp = node.strokes?.find(
+        (f) => f.visible !== false && (f.type === "SOLID" || f.type.startsWith("GRADIENT")),
+    );
+    if (sp && node.strokeWeight) {
+        const thickness = Math.max(1, Math.round(node.strokeWeight));
+        const align =
+            node.strokeAlign === "INSIDE"
+                ? "Inner"
+                : node.strokeAlign === "OUTSIDE"
+                  ? "Outer"
+                  : "Center";
+        if (sp.type === "SOLID" && sp.color) {
+            p.stroke = { thickness, align, color: rgb(sp.color) };
+        } else if (sp.gradientStops && sp.gradientStops.length >= 2) {
+            p.stroke = {
+                thickness,
+                align,
+                gradient: {
+                    stops: sp.gradientStops.map((s) => ({
+                        pos: Math.min(1, Math.max(0, s.position)),
+                        color: rgb(s.color),
+                    })),
+                    rotation: gradientAngle(sp.gradientTransform),
+                },
+            };
+        } else if (sp.gradientStops?.[0]?.color) {
+            p.stroke = { thickness, align, color: rgb(sp.gradientStops[0].color) }; // single stop -> solid
+        }
     }
 
     if (node.clipsContent) p.clipsDescendants = true;
@@ -83,12 +117,13 @@ function buildProps(node: FigmaNode, cls: RobloxClass): UiProps {
     return p;
 }
 
-// Returns null for excluded nodes (`@exclude` / leading `_`), which drops the subtree.
-function mapNode(node: FigmaNode, parentBox?: Rect): UiNode | null {
+// Drops excluded nodes and any without a `@Class`; the root defaults to Frame.
+function mapNode(node: FigmaNode, parentBox?: Rect, isRoot = false): UiNode | null {
     const info = parseName(node.name);
     if (info.excluded) return null;
 
-    const cls = info.forcedClass ?? (info.scroll ? "ScrollingFrame" : classify(node));
+    const cls = info.forcedClass ?? (isRoot ? "Frame" : null);
+    if (!cls) return null;
     const box = node.absoluteBoundingBox;
     const pos =
         box && parentBox
@@ -112,5 +147,5 @@ function mapNode(node: FigmaNode, parentBox?: Rect): UiNode | null {
 
 // Entry point: the root frame maps relative to itself (pos 0,0).
 export function mapFigma(root: FigmaNode): UiNode | null {
-    return mapNode(root, root.absoluteBoundingBox);
+    return mapNode(root, root.absoluteBoundingBox, true);
 }

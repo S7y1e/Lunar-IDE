@@ -33,7 +33,22 @@ function NodeView({ n }: { n: UiNode }) {
         const a = p.backgroundTransparency !== undefined ? 1 - p.backgroundTransparency : 1;
         style.background = `rgba(${p.backgroundColor.join(", ")}, ${a})`;
     }
-    if (p.stroke) style.border = `${p.stroke.thickness}px solid rgb(${p.stroke.color.join(", ")})`;
+    if (!text && p.gradient) {
+        const stops = p.gradient.stops
+            .map((s) => `rgb(${s.color.join(",")}) ${Math.round(s.pos * 100)}%`)
+            .join(", ");
+        style.background = `linear-gradient(${p.gradient.rotation + 90}deg, ${stops})`;
+    }
+    if (p.stroke?.color) {
+        style.border = `${p.stroke.thickness}px solid rgb(${p.stroke.color.join(", ")})`;
+    } else if (p.stroke?.gradient) {
+        const stops = p.stroke.gradient.stops
+            .map((s) => `rgb(${s.color.join(",")}) ${Math.round(s.pos * 100)}%`)
+            .join(", ");
+        style.borderWidth = `${p.stroke.thickness}px`;
+        style.borderStyle = "solid";
+        style.borderImage = `linear-gradient(${p.stroke.gradient.rotation + 90}deg, ${stops}) 1`;
+    }
 
     const placeholder = isImage(n.className) && p.hasImageFill ? styles.placeholder : undefined;
 

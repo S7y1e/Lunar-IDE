@@ -43,6 +43,17 @@ export function generateLuau(tree: UiNode, opts: CodegenOptions): string {
     const scaled = opts.mode === "Scaled";
     const rgb = (c: [number, number, number]) => `Color3.fromRGB(${c[0]}, ${c[1]}, ${c[2]})`;
 
+    // ColorSequence needs endpoints at 0 and 1; force the first/last stops there.
+    const colorSeq = (stops: { pos: number; color: [number, number, number] }[]): string => {
+        const kps = stops
+            .map((st, i) => {
+                const pos = i === 0 ? 0 : i === stops.length - 1 ? 1 : st.pos;
+                return `ColorSequenceKeypoint.new(${+pos.toFixed(3)}, ${rgb(st.color)})`;
+            })
+            .join(", ");
+        return `ColorSequence.new({${kps}})`;
+    };
+
     const spec = (node: UiNode, parent: UiNode | null): string => {
         const props: string[] = [
             `Name = ${luauStr(node.name)}`,
@@ -70,12 +81,26 @@ export function generateLuau(tree: UiNode, opts: CodegenOptions): string {
         if (isImage(node.className) && (p.imageHash || p.hasImageFill)) props.push(`Image = ""`);
 
         const kids: string[] = [];
+        if (p.gradient)
+            kids.push(
+                `{"UIGradient", {Color = ${colorSeq(p.gradient.stops)}, Rotation = ${p.gradient.rotation}}}`,
+            );
         if (p.cornerRadius)
             kids.push(`{"UICorner", {CornerRadius = UDim.new(0, ${p.cornerRadius})}}`);
-        if (p.stroke)
-            kids.push(
-                `{"UIStroke", {Color = ${rgb(p.stroke.color)}, Thickness = ${p.stroke.thickness}}}`,
-            );
+        if (p.stroke) {
+            const sk = p.stroke;
+            const sp = [`Thickness = ${sk.thickness}`];
+            if (sk.align) sp.push(`BorderStrokePosition = Enum.BorderStrokePosition.${sk.align}`);
+            // UIStroke.Color defaults to black and MULTIPLIES the child UIGradient, so
+            // a gradient stroke needs white here or the gradient renders black.
+            if (sk.color) sp.push(`Color = ${rgb(sk.color)}`);
+            else if (sk.gradient) sp.push(`Color = Color3.fromRGB(255, 255, 255)`);
+            // UIGradient inside the UIStroke colours the border with the gradient.
+            const strokeKids = sk.gradient
+                ? `, {{"UIGradient", {Color = ${colorSeq(sk.gradient.stops)}, Rotation = ${sk.gradient.rotation}}}}`
+                : "";
+            kids.push(`{"UIStroke", {${sp.join(", ")}}${strokeKids}}`);
+        }
         if (p.layout)
             kids.push(
                 `{"UIListLayout", {FillDirection = Enum.FillDirection.${p.layout.dir}, Padding = UDim.new(0, ${p.layout.spacing})}}`,

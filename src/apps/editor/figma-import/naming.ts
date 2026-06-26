@@ -1,8 +1,10 @@
-// Layer name -> sanitized Roblox Instance.Name + directives baked into the name.
-//   "text test"            -> { name: "TextTest" }
+// Layer name -> sanitized Roblox Instance.Name + the class baked into the name.
+// The class is the SOURCE OF TRUTH: a node is imported only if its name carries an
+// explicit `@Class` (the root frame is the sole exception, defaulting to Frame).
 //   "PlayButton@ImageButton" -> { name: "PlayButton", forcedClass: "ImageButton" }
-//   "_Ignore" / "x@exclude"  -> { excluded: true }
-//   "List@scroll"            -> { scroll: true }
+//   "group2093@Frame"        -> { name: "Group2093", forcedClass: "Frame" }
+//   "_Ignore" / "x@Ignore"   -> { excluded: true }
+//   "logo"                   -> { name: "Logo" } (no class -> dropped, see map-figma)
 
 import type { RobloxClass } from "./figma-types";
 
@@ -10,7 +12,6 @@ export interface NameInfo {
     name: string; // sanitized PascalCase identifier
     forcedClass?: RobloxClass;
     excluded: boolean;
-    scroll: boolean;
 }
 
 const CLASS_TOKENS: Record<string, RobloxClass> = {
@@ -33,15 +34,14 @@ function sanitize(s: string): string {
 }
 
 export function parseName(raw: string): NameInfo {
-    const info: NameInfo = { name: "Node", excluded: false, scroll: false };
-    let s = raw.trim();
+    const info: NameInfo = { name: "Node", excluded: false };
+    const s = raw.trim();
     if (s.startsWith("_")) info.excluded = true;
 
     const segs = s.split("@");
     for (const tok of segs.slice(1)) {
         const t = tok.trim().toLowerCase();
-        if (t === "exclude") info.excluded = true;
-        else if (t === "scroll") info.scroll = true;
+        if (t === "exclude" || t === "ignore") info.excluded = true;
         else if (CLASS_TOKENS[t]) info.forcedClass = CLASS_TOKENS[t];
     }
 

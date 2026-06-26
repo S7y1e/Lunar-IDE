@@ -8,18 +8,23 @@ export interface FigmaImage {
     png: string; // base64 PNG from the Figma plugin
 }
 
-// PNG base64 -> raw RGBA base64 (+ dimensions), via an offscreen canvas.
+// Roblox's CreateEditableImage rejects sides >= 2048, so clamp under that here too.
+const MAX_SIDE = 2000;
+
+// PNG base64 -> raw RGBA base64 (+ dimensions), via an offscreen canvas. Oversized
+// images are downscaled so they stay within the EditableImage limit.
 export async function pngToRgba(pngBase64: string): Promise<{ rgba: string; w: number; h: number }> {
     const img = new Image();
     img.src = "data:image/png;base64," + pngBase64;
     await img.decode();
-    const w = img.naturalWidth;
-    const h = img.naturalHeight;
+    const scale = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
     const canvas = document.createElement("canvas");
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(img, 0, 0);
+    ctx.drawImage(img, 0, 0, w, h);
     const data = ctx.getImageData(0, 0, w, h).data;
 
     // base64 of the raw bytes, chunked so we don't blow the call stack on btoa.

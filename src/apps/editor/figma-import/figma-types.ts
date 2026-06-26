@@ -13,6 +13,8 @@ export interface FigmaFill {
     visible?: boolean;
     opacity?: number;
     color?: FigmaColor;
+    gradientStops?: { position: number; color: FigmaColor }[];
+    gradientTransform?: number[][]; // [[a,b,tx],[c,d,ty]] — gradient axis direction
 }
 
 export interface Rect {
@@ -37,6 +39,7 @@ export interface FigmaNode {
     fills?: FigmaFill[];
     strokes?: FigmaFill[];
     strokeWeight?: number;
+    strokeAlign?: string; // INSIDE | OUTSIDE | CENTER
     clipsContent?: boolean;
     cornerRadius?: number;
     rectangleCornerRadii?: number[];
@@ -62,10 +65,16 @@ export type RobloxClass =
 export interface UiProps {
     backgroundColor?: [number, number, number]; // 0-255
     backgroundTransparency?: number;
+    gradient?: { stops: { pos: number; color: [number, number, number] }[]; rotation: number };
     clipsDescendants?: boolean;
     cornerRadius?: number; // uniform (also = max of cornerRadii, for Roblox UICorner)
     cornerRadii?: [number, number, number, number]; // per-corner TL,TR,BR,BL (preview only)
-    stroke?: { color: [number, number, number]; thickness: number };
+    stroke?: {
+        thickness: number;
+        align?: "Inner" | "Outer" | "Center";
+        color?: [number, number, number];
+        gradient?: { stops: { pos: number; color: [number, number, number] }[]; rotation: number };
+    };
     text?: string;
     textColor?: [number, number, number];
     textSize?: number;
