@@ -6,7 +6,6 @@ local ReplicatedStorage  = game:GetService("ReplicatedStorage")
 local Selection          = game:GetService("Selection")
 local ChangeHistoryService = game:GetService("ChangeHistoryService")
 
-local VERSION    = "4.0.2" -- keep in sync with the Lunar IDE release
 local RELAY_NAME = "_LunarLogRelay"
 local ENDPOINT   = "http://127.0.0.1:34900"
 
@@ -25,8 +24,6 @@ local LEVEL: { [Enum.MessageType]: string } = {
 local toolbar    = plugin:CreateToolbar("Lunar")
 local toolsBtn   = toolbar:CreateButton("Tools",  "Open Lunar Tools",  "")
 local bridgeBtn  = toolbar:CreateButton("Bridge", "Toggle bridge info", "")
-
-print(string.format("[Lunar] Bridge v%s loaded (%s)", VERSION, context))
 
 -- ── bridge ─────────────────────────────────────────────────────────────────
 local handleCommand: (raw: string) -> ()
