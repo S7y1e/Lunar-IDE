@@ -42,7 +42,7 @@ import EditorOverlays from "./editor-overlays";
 import FigmaPreview from "./figma-import/figma-preview";
 import { mapFigma } from "./figma-import/map-figma";
 import { type FigmaNode, type UiNode } from "./figma-import/figma-types";
-import { type FigmaImage } from "./figma-import/upload-image";
+import { type FigmaImage, parseUploadResult, setCachedAsset } from "./figma-import/upload-image";
 import { ProjectProvider, useProject } from "../../lib/project";
 
 type Props = {
@@ -170,6 +170,14 @@ function EditorBody({ path }: Props) {
         [runtime.messages, resolve, path],
     );
     useRuntimeMarkers(diagnostics);
+
+    // Populate the IDE asset cache from "[lunar-asset] hash ok|reused rbxassetid://…" lines.
+    useEffect(() => {
+        for (const msg of runtime.messages) {
+            const r = parseUploadResult(msg.text ?? "");
+            if (r) setCachedAsset(r.hash, r.assetId);
+        }
+    }, [runtime.messages]);
 
     const tests = useTestResults();
 

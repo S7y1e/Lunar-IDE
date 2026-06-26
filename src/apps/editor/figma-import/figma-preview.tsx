@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { VscClose } from "react-icons/vsc";
 import { generateLuau } from "./generate-luau";
 import { runtimeEnqueue } from "../../../lib/project";
-import { buildUploadLuau, pngToRgba, type FigmaImage } from "./upload-image";
+import { buildApplyLuau, buildUploadLuau, getCachedAsset, pngToRgba, type FigmaImage } from "./upload-image";
 import type { UiNode, RobloxClass } from "./figma-types";
 import { NodeView, type SelectCtx } from "./figma-node-view";
 import FigmaTreeManager from "./figma-tree-manager";
@@ -143,6 +143,11 @@ export default function FigmaPreview({
         const code = generateLuau(patched, { root: rootMode, mode: sizeMode });
         runtimeEnqueue({ type: "eval", code }).catch(() => {});
         for (const im of images) {
+            const cached = getCachedAsset(im.hash);
+            if (cached) {
+                runtimeEnqueue({ type: "eval", code: buildApplyLuau(im.hash, cached) }).catch(() => {});
+                continue;
+            }
             try {
                 const { rgba, w, h } = await pngToRgba(im.png);
                 runtimeEnqueue({ type: "eval", code: buildUploadLuau(rgba, w, h, im.hash) }).catch(() => {});

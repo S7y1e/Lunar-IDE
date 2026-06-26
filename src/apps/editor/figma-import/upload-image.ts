@@ -2,10 +2,53 @@
 // decode them to raw RGBA (in the webview's canvas) and emit a Luau script that
 // rebuilds the pixels in Studio, uploads via CreateAssetAsync, and applies the
 // resulting rbxassetid to every instance tagged with the matching LunarImage hash.
+//
+// Dedup: hash → rbxassetid is persisted in localStorage so we skip re-uploading
+// the same image between "Send to Roblox" calls and across IDE sessions. Studio
+// also keeps a _LunarAssetCache folder so dedup works within a Studio session even
+// if the IDE cache is cold.
 
 export interface FigmaImage {
     hash: string;
     png: string; // base64 PNG from the Figma plugin
+}
+
+// ── IDE-side asset cache (localStorage) ──────────────────────────────────────
+
+const CACHE_KEY = "lunar-asset-cache";
+
+function loadCache(): Record<string, string> {
+    try { return JSON.parse(localStorage.getItem(CACHE_KEY) ?? "{}"); } catch { return {}; }
+}
+
+export function getCachedAsset(hash: string): string | null {
+    return loadCache()[hash] ?? null;
+}
+
+export function setCachedAsset(hash: string, assetId: string): void {
+    const c = loadCache();
+    c[hash] = assetId;
+    localStorage.setItem(CACHE_KEY, JSON.stringify(c));
+}
+
+// Parse a "[lunar-asset] <hash> ok|reused <rbxassetid://…>" line from the runtime.
+export function parseUploadResult(msg: string): { hash: string; assetId: string } | null {
+    const m = msg.match(/\[lunar-asset\] (\S+) (?:ok|reused) (rbxassetid:\/\/\d+)/);
+    if (!m) return null;
+    return { hash: m[1], assetId: m[2] };
+}
+
+// Apply a known assetId to all matching instances — no upload needed.
+export function buildApplyLuau(hash: string, assetId: string): string {
+    return `do
+\tfor _, d in ipairs(game:GetService("StarterGui"):GetDescendants()) do
+\t\tif d:GetAttribute("LunarImage") == "${hash}" then
+\t\t\td.Image = "${assetId}"
+\t\t\td.BackgroundTransparency = 1
+\t\tend
+\tend
+\tprint("[lunar-asset] ${hash} reused ${assetId}")
+end`;
 }
 
 // Roblox's CreateEditableImage rejects sides >= 2048, so clamp under that here too.
@@ -36,11 +79,32 @@ export async function pngToRgba(pngBase64: string): Promise<{ rgba: string; w: n
     return { rgba: btoa(bin), w, h };
 }
 
-// Luau: decode the RGBA base64 -> EditableImage -> CreateAssetAsync -> apply to
-// every StarterGui descendant whose LunarImage attribute == hash. Prints a result.
+// Luau: check Studio-side cache first; if hit, apply and skip upload. Otherwise
+// decode RGBA → EditableImage → CreateAssetAsync → store in cache → apply.
 export function buildUploadLuau(rgba: string, w: number, h: number, hash: string): string {
     return `do
 \tlocal AssetService = game:GetService("AssetService")
+\tlocal RS = game:GetService("ReplicatedStorage")
+\tlocal SG = game:GetService("StarterGui")
+\tlocal function applyId(assetId)
+\t\tfor _, d in ipairs(SG:GetDescendants()) do
+\t\t\tif d:GetAttribute("LunarImage") == "${hash}" then
+\t\t\t\td.Image = assetId
+\t\t\t\td.BackgroundTransparency = 1
+\t\t\tend
+\t\tend
+\tend
+\t-- Studio-session cache: _LunarAssetCache folder in ReplicatedStorage
+\tlocal cache = RS:FindFirstChild("_LunarAssetCache") or (function()
+\t\tlocal f = Instance.new("Folder"); f.Name = "_LunarAssetCache"; f.Parent = RS; return f
+\tend)()
+\tlocal cached = cache:FindFirstChild("${hash}")
+\tif cached then
+\t\tapplyId(cached.Value)
+\t\tprint("[lunar-asset] ${hash} reused " .. cached.Value)
+\t\treturn
+\tend
+\t-- Full upload
 \tlocal CH = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 \tlocal map = {}
 \tfor i = 1, #CH do map[string.byte(CH, i)] = i - 1 end
@@ -70,12 +134,9 @@ export function buildUploadLuau(rgba: string, w: number, h: number, hash: string
 \t\twarn("[lunar-asset] ${hash} fail " .. tostring(res))
 \t\treturn
 \tend
-\tfor _, d in ipairs(game:GetService("StarterGui"):GetDescendants()) do
-\t\tif d:GetAttribute("LunarImage") == "${hash}" then
-\t\t\td.Image = "rbxassetid://" .. tostring(id)
-\t\t\td.BackgroundTransparency = 1
-\t\tend
-\tend
-\tprint("[lunar-asset] ${hash} ok " .. tostring(id))
+\tlocal assetId = "rbxassetid://" .. tostring(id)
+\tlocal sv = Instance.new("StringValue"); sv.Name = "${hash}"; sv.Value = assetId; sv.Parent = cache
+\tapplyId(assetId)
+\tprint("[lunar-asset] ${hash} ok " .. assetId)
 end`;
 }

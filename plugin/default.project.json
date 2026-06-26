@@ -1,0 +1,6 @@
+{
+  "name": "Lunar-Plugin",
+  "tree": {
+    "$path": "src"
+  }
+}
