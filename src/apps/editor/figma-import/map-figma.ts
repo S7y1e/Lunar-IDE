@@ -1,5 +1,5 @@
-// Figma node tree -> normalized Roblox UI tree. The class comes from the layer
-// name (`@ImageButton`, ...); nodes without one are dropped (root defaults to Frame).
+// Figma node tree -> normalized Roblox UI tree. Class is auto-inferred from the
+// Figma node type; `@ClassName` in the layer name overrides it.
 
 import type { FigmaFill, FigmaNode, RobloxClass, Rect, UiNode, UiProps } from "./figma-types";
 import { parseName } from "./naming";
@@ -117,13 +117,20 @@ function buildProps(node: FigmaNode, cls: RobloxClass): UiProps {
     return p;
 }
 
-// Drops excluded nodes and any without a `@Class`; the root defaults to Frame.
+function autoClass(node: FigmaNode): RobloxClass {
+    if (node.type === "TEXT") return "TextLabel";
+    if (hasImageFill(node.fills)) return "ImageLabel";
+    if (node.interactions && (node.interactions as unknown[]).length > 0) return "ImageButton";
+    return "Frame";
+}
+
+// Drops excluded nodes; `@Class` overrides auto-classification.
 function mapNode(node: FigmaNode, parentBox?: Rect, isRoot = false): UiNode | null {
     const info = parseName(node.name);
     if (info.excluded) return null;
 
-    const cls = info.forcedClass ?? (isRoot ? "Frame" : null);
-    if (!cls) return null;
+    const guess = autoClass(node);
+    const cls = info.forcedClass ?? (isRoot ? "Frame" : guess);
     const box = node.absoluteBoundingBox;
     const pos =
         box && parentBox
@@ -135,7 +142,7 @@ function mapNode(node: FigmaNode, parentBox?: Rect, isRoot = false): UiNode | nu
         name: info.name,
         figmaName: node.name,
         className: cls,
-        guess: cls,
+        guess,
         pos,
         size,
         props: buildProps(node, cls),

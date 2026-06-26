@@ -54,7 +54,8 @@ type Props = {
     renameNode: (node: FileNode, newName: string) => Promise<string | null>;
     onToggleTerminal: () => void;
     onStudioPlay: (stop: boolean) => void;
-    onFigmaPreview: (tree: UiNode) => void;
+    onFigmaOpen: () => void;
+    figmaTrees: UiNode[];
 };
 
 // Render a tool window's content by id — keyed by tool so any tool can dock anywhere.
@@ -67,7 +68,7 @@ export default function ToolWindow(p: Props): ReactNode {
         case "structure":
             return <StructurePanel activeFile={p.activeFile} onGoTo={p.goToLine} />;
         case "figma":
-            return <FigmaPanel onPreview={p.onFigmaPreview} />;
+            return <FigmaPanel onOpen={p.onFigmaOpen} trees={p.figmaTrees} />;
         case "sync":
             return (
                 <SyncPanel

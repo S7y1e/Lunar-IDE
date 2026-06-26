@@ -66,7 +66,8 @@ function EditorBody({ path }: Props) {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [renaming, setRenaming] = useState(false);
     const [cursor, setCursor] = useState<{ line: number; column: number } | null>(null);
-    const [figmaPreview, setFigmaPreview] = useState<UiNode | null>(null);
+    const [figmaTrees, setFigmaTrees] = useState<UiNode[]>([]);
+    const [figmaOpen, setFigmaOpen] = useState(false);
     const [figmaImages, setFigmaImages] = useState<FigmaImage[]>([]);
 
     const sync = useSyncServer(path);
@@ -103,8 +104,11 @@ function EditorBody({ path }: Props) {
                 const root = (payload.root ?? payload) as FigmaNode;
                 const t = mapFigma(root);
                 if (t) {
-                    setFigmaImages([]);
-                    setFigmaPreview(t);
+                    setFigmaTrees((prev) => {
+                        const filtered = prev.filter((p) => p.name !== t.name);
+                        return [...filtered, t];
+                    });
+                    setFigmaOpen(true);
                 }
             },
         );
@@ -273,10 +277,8 @@ function EditorBody({ path }: Props) {
             renameNode={renameNode}
             onToggleTerminal={() => layout.toggle("terminal")}
             onStudioPlay={studioPlay}
-            onFigmaPreview={(t) => {
-                setFigmaImages([]);
-                setFigmaPreview(t);
-            }}
+            figmaTrees={figmaTrees}
+            onFigmaOpen={() => setFigmaOpen(true)}
         />
     );
 
@@ -368,11 +370,13 @@ function EditorBody({ path }: Props) {
                 toasts={toasts}
             />
 
-            <FigmaPreview
-                tree={figmaPreview}
-                images={figmaImages}
-                onClose={() => setFigmaPreview(null)}
-            />
+            {figmaOpen && figmaTrees.length > 0 && (
+                <FigmaPreview
+                    trees={figmaTrees}
+                    images={figmaImages}
+                    onClose={() => setFigmaOpen(false)}
+                />
+            )}
         </div>
     );
 }
