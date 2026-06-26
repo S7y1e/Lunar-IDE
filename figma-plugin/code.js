@@ -95,8 +95,11 @@ function extract(node, toExport) {
     if (node.type === "TEXT") {
         o.characters = node.characters;
         const f = node.fontName;
+        const styleName = f && typeof f.style === "string" ? f.style : undefined;
         o.style = {
             fontFamily: f && f.family ? f.family : undefined,
+            fontWeight: typeof node.fontWeight === "number" ? node.fontWeight : undefined,
+            italic: styleName ? /italic|oblique/i.test(styleName) : undefined,
             fontSize: typeof node.fontSize === "number" ? node.fontSize : undefined,
             textAlignHorizontal: node.textAlignHorizontal,
         };
