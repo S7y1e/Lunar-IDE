@@ -7,6 +7,8 @@ local LogService = game:GetService("LogService")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local VERSION = "4.0.2" -- keep in sync with the Lunar IDE release
+
 local RELAY_NAME = "_LunarLogRelay"
 
 local ENDPOINT = "http://127.0.0.1:34900"
@@ -27,6 +29,8 @@ local LEVEL: { [Enum.MessageType]: string } = {
 
 local toolbar = plugin:CreateToolbar("Lunar")
 toolbar:CreateButton("Bridge", "Stream play-test output to Lunar", "")
+
+print(string.format("[Lunar] Bridge v%s loaded (%s)", VERSION, context))
 
 -- Forward declared so post() can dispatch commands the IDE returns.
 local handleCommand: (raw: string) -> ()

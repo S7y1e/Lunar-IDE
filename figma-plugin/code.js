@@ -2,7 +2,10 @@
 // { root: <FigmaNode tree>, images: [{hash, png}] }. Nodes that can't be rebuilt
 // natively are exported as PNG for the IDE to upload.
 
+const VERSION = "4.0.2"; // keep in sync with the Lunar IDE release
+
 figma.showUI(__html__, { width: 260, height: 150 });
+console.log(`Lunar UI Export v${VERSION}`);
 
 const BRIDGE = "http://localhost:34900/figma";
 
@@ -214,7 +217,7 @@ figma.ui.onmessage = async (msg) => {
 
     try {
         // Structure first (small) so the preview opens immediately; images stream after.
-        await post({ root });
+        await post({ root, version: VERSION });
         for (const im of images) await post({ image: im });
         figma.ui.postMessage({ type: "status", ok: true, text: "Sent to Lunar ✓ (" + images.length + " images)" });
     } catch (e) {
