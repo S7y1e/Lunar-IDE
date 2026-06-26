@@ -44,7 +44,12 @@ const run = async () => {
         process.exit(1);
     }
     const doc = await fetchFrame(fileKey, nodeId, token);
-    show(mapFigma(doc));
+    const tree = mapFigma(doc);
+    if (!tree) {
+        console.error("root node is excluded");
+        process.exit(1);
+    }
+    show(tree);
 };
 
 run().catch((e) => {

@@ -24,6 +24,10 @@ export async function fetchFrame(
         `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}`,
         { headers: { "X-Figma-Token": token } },
     );
+    if (res.status === 429) {
+        const wait = res.headers.get("Retry-After");
+        throw new Error(`Figma rate limit hit. Wait ${wait ? `${wait}s` : "a minute"} and retry.`);
+    }
     if (!res.ok) throw new Error(`Figma ${res.status}: ${await res.text()}`);
     const json = (await res.json()) as { nodes: Record<string, { document?: FigmaNode }> };
     const doc = json.nodes[nodeId]?.document;

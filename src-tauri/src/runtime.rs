@@ -50,6 +50,11 @@ pub fn spawn(app: AppHandle, state: &RuntimeBridge) {
         let json_ct = Header::from_bytes(b"Content-Type", b"application/json").unwrap();
 
         for mut request in server.incoming_requests() {
+            // The Figma plugin pushes the selected frame here (no REST, no rate limit).
+            if request.url().starts_with("/figma") {
+                handle_figma(&app, request, &json_ct);
+                continue;
+            }
             if request.method() == &tiny_http::Method::Get {
                 // Plugin polls GET /poll to drain pending IDE commands.
                 let batch: Vec<String> = queue.lock().unwrap().drain(..).collect();
@@ -74,6 +79,26 @@ pub fn spawn(app: AppHandle, state: &RuntimeBridge) {
             }
         }
     });
+}
+
+// Ingest a frame from the Figma plugin and forward it to the UI as `figma://import`.
+fn handle_figma(app: &AppHandle, mut request: tiny_http::Request, json_ct: &Header) {
+    let cors = Header::from_bytes(b"Access-Control-Allow-Origin", b"*").unwrap();
+    if request.method() == &tiny_http::Method::Options {
+        let allow = Header::from_bytes(b"Access-Control-Allow-Headers", b"Content-Type").unwrap();
+        let _ = request.respond(Response::empty(204).with_header(cors).with_header(allow));
+        return;
+    }
+    let mut body = String::new();
+    let _ = request.as_reader().read_to_string(&mut body);
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(&body) {
+        let _ = app.emit("figma://import", value);
+    }
+    let _ = request.respond(
+        Response::from_string("{\"ok\":true}")
+            .with_header(json_ct.clone())
+            .with_header(cors),
+    );
 }
 
 #[tauri::command]

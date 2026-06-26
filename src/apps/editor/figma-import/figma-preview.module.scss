@@ -1,0 +1,137 @@
+@use "../styles/vars" as *;
+
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1500;
+    display: flex;
+    flex-direction: column;
+    background: $panel;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 44px;
+    padding: 0 12px;
+    border-bottom: 1px solid $divider;
+}
+
+.title {
+    font-size: 13px;
+    font-weight: 600;
+    color: $text;
+}
+
+.dims {
+    font-size: 11px;
+    color: $muted;
+    font-variant-numeric: tabular-nums;
+}
+
+.spacer {
+    flex: 1;
+}
+
+.seg {
+    display: flex;
+    border: 1px solid $divider;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.segOn,
+.segOff {
+    border: none;
+    padding: 5px 12px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.segOn {
+    background: $accent;
+    color: #fff;
+}
+
+.segOff {
+    background: transparent;
+    color: $muted;
+}
+
+.send {
+    height: 30px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 4px;
+    background: $accent;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: $muted;
+    cursor: pointer;
+
+    &:hover {
+        background: $hover;
+        color: $text;
+    }
+}
+
+.viewport {
+    flex: 1;
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: $deep;
+    // subtle checker so transparent areas read as "empty"
+    background-image:
+        linear-gradient(45deg, rgba(255, 255, 255, 0.03) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255, 255, 255, 0.03) 25%, transparent 25%);
+    background-size: 20px 20px;
+}
+
+.stage {
+    position: relative;
+    flex-shrink: 0;
+    transform-origin: center center;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+}
+
+.node {
+    position: absolute;
+    box-sizing: border-box;
+}
+
+.text {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    white-space: pre;
+    line-height: 1;
+}
+
+.placeholder {
+    background:
+        repeating-linear-gradient(
+            45deg,
+            rgba(255, 255, 255, 0.12),
+            rgba(255, 255, 255, 0.12) 6px,
+            rgba(255, 255, 255, 0.04) 6px,
+            rgba(255, 255, 255, 0.04) 12px
+        ),
+        $hover;
+}

@@ -21,6 +21,18 @@
     letter-spacing: 0.5px;
 }
 
+.hint {
+    padding: 10px 12px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: $muted;
+    border-bottom: 1px solid $divider;
+
+    b {
+        color: $text;
+    }
+}
+
 .form {
     display: flex;
     flex-direction: column;
@@ -119,4 +131,21 @@
     color: $muted;
     font-size: 11px;
     font-variant-numeric: tabular-nums;
+}
+
+.reopen {
+    display: block;
+    width: calc(100% - 24px);
+    margin: 8px 12px;
+    height: 26px;
+    border: 1px solid $divider;
+    border-radius: 4px;
+    background: transparent;
+    color: $text;
+    font-size: 12px;
+    cursor: pointer;
+
+    &:hover {
+        background: $hover;
+    }
 }

@@ -1,13 +1,14 @@
 // Ad-hoc runner: `bun src/apps/editor/figma-import/map-figma.test.ts`.
 // Prints the mapped tree and asserts the known cases of the `integration` frame.
 
-import type { FigmaNode } from "./figma-types";
+import type { FigmaNode, UiNode } from "./figma-types";
 import { mapFigma } from "./map-figma";
 import fixture from "./__fixtures__/integration.json";
 
 const tree = mapFigma(fixture as FigmaNode);
+if (!tree) throw new Error("root excluded");
 
-function show(n: ReturnType<typeof mapFigma>, depth = 0): void {
+function show(n: UiNode, depth = 0): void {
     const pad = "  ".repeat(depth);
     const { x, y } = n.pos;
     const { w, h } = n.size;

@@ -5,6 +5,7 @@ import FindPanel from "../find/find-panel";
 import TodoPanel from "../todo/todo-panel";
 import StructurePanel from "../structure/structure-panel";
 import FigmaPanel from "../figma-import/figma-panel";
+import { type UiNode } from "../figma-import/figma-types";
 import SyncPanel from "../sync/sync-panel";
 import ToolchainPanel from "../toolchain/toolchain-panel";
 import DataModelPanel from "../data-model/data-model-panel";
@@ -53,6 +54,7 @@ type Props = {
     renameNode: (node: FileNode, newName: string) => Promise<string | null>;
     onToggleTerminal: () => void;
     onStudioPlay: (stop: boolean) => void;
+    onFigmaPreview: (tree: UiNode) => void;
 };
 
 // Render a tool window's content by id — keyed by tool so any tool can dock anywhere.
@@ -65,7 +67,7 @@ export default function ToolWindow(p: Props): ReactNode {
         case "structure":
             return <StructurePanel activeFile={p.activeFile} onGoTo={p.goToLine} />;
         case "figma":
-            return <FigmaPanel />;
+            return <FigmaPanel onPreview={p.onFigmaPreview} />;
         case "sync":
             return (
                 <SyncPanel

@@ -72,7 +72,8 @@ export interface UiProps {
 
 export interface UiNode {
     id: string; // figma node id
-    name: string;
+    name: string; // sanitized Roblox Instance.Name
+    figmaName: string; // original Figma layer name (for the review UI)
     className: RobloxClass; // current (possibly user-overridden) class
     guess: RobloxClass; // original heuristic guess, for Reset in the review UI
     pos: { x: number; y: number }; // offset px, relative to parent

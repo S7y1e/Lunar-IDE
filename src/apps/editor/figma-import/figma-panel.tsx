@@ -29,7 +29,8 @@ function Row({ node, depth }: { node: UiNode; depth: number }) {
     );
 }
 
-export default function FigmaPanel() {
+// onPreview opens the loaded tree in the main editor area (visual mockup + send).
+export default function FigmaPanel({ onPreview }: { onPreview: (tree: UiNode) => void }) {
     const [url, setUrl] = useState(() => localStorage.getItem(URL_KEY) ?? "");
     const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) ?? "");
     const [tree, setTree] = useState<UiNode | null>(null);
@@ -44,7 +45,10 @@ export default function FigmaPanel() {
             localStorage.setItem(URL_KEY, url.trim());
             localStorage.setItem(TOKEN_KEY, token.trim());
             const doc = await fetchFrame(fileKey, nodeId, token.trim(), tauriFetch as typeof fetch);
-            setTree(mapFigma(doc));
+            const t = mapFigma(doc);
+            if (!t) throw new Error("root node is excluded");
+            setTree(t);
+            onPreview(t);
         } catch (e) {
             setTree(null);
             setError(String(e instanceof Error ? e.message : e));
@@ -58,6 +62,12 @@ export default function FigmaPanel() {
             <div className={styles.header}>
                 <FaFigma size={13} />
                 <span>Figma</span>
+            </div>
+
+            <div className={styles.hint}>
+                Use the <b>Lunar UI Export</b> plugin in Figma to send a frame — no rate limit,
+                opens the preview automatically. The fields below are the old REST path (rate-limited
+                — fallback only).
             </div>
 
             <div className={styles.form}>
@@ -89,6 +99,9 @@ export default function FigmaPanel() {
 
             {tree ? (
                 <div className={styles.body}>
+                    <button className={styles.reopen} onClick={() => onPreview(tree)}>
+                        Open preview
+                    </button>
                     <Row node={tree} depth={0} />
                 </div>
             ) : (

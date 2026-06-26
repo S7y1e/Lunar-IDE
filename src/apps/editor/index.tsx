@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo, useEffect, type ReactNode, type PointerEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import * as monaco from "monaco-editor";
 import styles from "./editor.module.scss";
 import { useLayout } from "./layout/use-layout";
@@ -38,6 +39,9 @@ import { useRokit } from "./toolchain/use-rokit";
 import { useDataModel } from "./data-model/use-data-model";
 import StatusBar from "./status-bar/status-bar";
 import EditorOverlays from "./editor-overlays";
+import FigmaPreview from "./figma-import/figma-preview";
+import { mapFigma } from "./figma-import/map-figma";
+import { type FigmaNode, type UiNode } from "./figma-import/figma-types";
 import { ProjectProvider, useProject } from "../../lib/project";
 
 type Props = {
@@ -61,6 +65,7 @@ function EditorBody({ path }: Props) {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [renaming, setRenaming] = useState(false);
     const [cursor, setCursor] = useState<{ line: number; column: number } | null>(null);
+    const [figmaPreview, setFigmaPreview] = useState<UiNode | null>(null);
 
     const sync = useSyncServer(path);
     const runtime = useRuntimeBridge();
@@ -82,6 +87,17 @@ function EditorBody({ path }: Props) {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [project?.root]);
+
+    // The Figma plugin POSTs the selected frame to the bridge; map it and open the preview.
+    useEffect(() => {
+        const un = listen<FigmaNode>("figma://import", (e) => {
+            const t = mapFigma(e.payload);
+            if (t) setFigmaPreview(t);
+        });
+        return () => {
+            un.then((f) => f());
+        };
+    }, []);
 
     useLuauLsp(path);
 
@@ -243,6 +259,7 @@ function EditorBody({ path }: Props) {
             renameNode={renameNode}
             onToggleTerminal={() => layout.toggle("terminal")}
             onStudioPlay={studioPlay}
+            onFigmaPreview={setFigmaPreview}
         />
     );
 
@@ -333,6 +350,8 @@ function EditorBody({ path }: Props) {
                 renameFile={renameFile}
                 toasts={toasts}
             />
+
+            <FigmaPreview tree={figmaPreview} onClose={() => setFigmaPreview(null)} />
         </div>
     );
 }

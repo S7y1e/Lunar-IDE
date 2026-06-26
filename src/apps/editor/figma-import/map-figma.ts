@@ -2,6 +2,7 @@
 // best-guess; the review UI lets the user override per node before codegen.
 
 import type { FigmaFill, FigmaNode, RobloxClass, Rect, UiNode, UiProps } from "./figma-types";
+import { parseName } from "./naming";
 
 const BTN = /button|btn|cta/i;
 
@@ -82,9 +83,13 @@ function buildProps(node: FigmaNode, cls: RobloxClass): UiProps {
     return p;
 }
 
-function mapNode(node: FigmaNode, parentBox?: Rect): UiNode {
+// Returns null for excluded nodes (`@exclude` / leading `_`), which drops the subtree.
+function mapNode(node: FigmaNode, parentBox?: Rect): UiNode | null {
+    const info = parseName(node.name);
+    if (info.excluded) return null;
+
+    const cls = info.forcedClass ?? (info.scroll ? "ScrollingFrame" : classify(node));
     const box = node.absoluteBoundingBox;
-    const cls = classify(node);
     const pos =
         box && parentBox
             ? { x: Math.round(box.x - parentBox.x), y: Math.round(box.y - parentBox.y) }
@@ -92,17 +97,20 @@ function mapNode(node: FigmaNode, parentBox?: Rect): UiNode {
     const size = box ? { w: Math.round(box.width), h: Math.round(box.height) } : { w: 0, h: 0 };
     return {
         id: node.id,
-        name: node.name,
+        name: info.name,
+        figmaName: node.name,
         className: cls,
         guess: cls,
         pos,
         size,
         props: buildProps(node, cls),
-        children: (node.children ?? []).map((c) => mapNode(c, box)),
+        children: (node.children ?? [])
+            .map((c) => mapNode(c, box))
+            .filter((c): c is UiNode => c !== null),
     };
 }
 
 // Entry point: the root frame maps relative to itself (pos 0,0).
-export function mapFigma(root: FigmaNode): UiNode {
+export function mapFigma(root: FigmaNode): UiNode | null {
     return mapNode(root, root.absoluteBoundingBox);
 }
