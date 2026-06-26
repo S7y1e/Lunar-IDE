@@ -7,8 +7,13 @@ figma.showUI(__html__, { width: 260, height: 150 });
 const BRIDGE = "http://localhost:34900/figma";
 
 // Name directives (mirror the IDE):
-//   "_"/"@exclude" — gone entirely (hidden from the PNG, not recreated)
-//   "@ignore"      — stays baked in the parent PNG, but not its own instance
+//   "_"/"@exclude"  — gone entirely (hidden from the PNG, not recreated)
+//   "@ignore"       — stays baked in the parent PNG, but not its own instance
+//   "@bg"           — rasterize node + ALL children into one PNG; no overlays extracted
+//   "@noclip"       — hint to IDE: ClipsDescendants = false
+//   "@clip"         — hint to IDE: ClipsDescendants = true
+//   "@scroll"       — shorthand for @ScrollingFrame
+//   "@canvas"       — shorthand for @CanvasGroup
 function hasToken(node, name) {
     return (node.name || "")
         .trim()
@@ -102,9 +107,10 @@ function extract(node, toExport) {
         o.itemSpacing = node.itemSpacing;
     }
 
-    if (needsImage(node)) {
-        toExport.push({ node, out: o });
-        if (node.children) {
+    const isBg = hasToken(node, "bg");
+    if (needsImage(node) || isBg) {
+        toExport.push({ node, out: o, keepChildren: isBg });
+        if (!isBg && node.children) {
             const overlays = collectOverlays(node.children, toExport);
             if (overlays.length) o.children = overlays;
         }
@@ -123,6 +129,17 @@ function collectTexts(node, acc) {
     else if (node.children) for (const c of node.children) collectTexts(c, acc);
 }
 
+// Collect direct children that will be recreated as native overlays (text or needsImage),
+// so they can be hidden during the parent's PNG export to avoid double-rendering.
+function collectOverlayNodes(node, acc) {
+    if (!node.children) return;
+    for (const c of node.children) {
+        if (dropped(c)) continue;
+        if (c.type === "TEXT" || needsImage(c)) acc.push(c);
+        else collectOverlayNodes(c, acc);
+    }
+}
+
 function collectExcluded(node, acc) {
     if (!node.children) return;
     for (const c of node.children) {
@@ -134,16 +151,17 @@ function collectExcluded(node, acc) {
 async function exportImages(toExport) {
     const images = [];
     const seen = {};
-    for (const { node, out } of toExport) {
-        // Text is hidden via opacity (bbox stable) since it's recreated natively;
-        // excluded nodes via visible=false. Ignored nodes stay — they belong in the PNG.
-        const texts = [];
-        collectTexts(node, texts);
-        const prev = texts.map((t) => t.opacity);
-        for (const t of texts) t.opacity = 0;
+    for (const { node, out, keepChildren } of toExport) {
+        // Hide nodes that will be recreated natively (text + overlay images) and excluded
+        // nodes before exporting the PNG so they don't get baked into the background.
+        // @bg nodes skip this — they intentionally bake all children into the image.
+        const overlays = [];
+        if (!keepChildren) collectOverlayNodes(node, overlays);
+        const prevVis = overlays.map((o) => o.visible);
+        for (const o of overlays) o.visible = false;
         const hidden = [];
         collectExcluded(node, hidden);
-        const prevVis = hidden.map((h) => h.visible);
+        const prevHidVis = hidden.map((h) => h.visible);
         for (const h of hidden) h.visible = false;
         try {
             const bb = node.absoluteBoundingBox;
@@ -160,8 +178,8 @@ async function exportImages(toExport) {
         } catch (e) {
             // skip nodes that can't export; they stay placeholders
         } finally {
-            texts.forEach((t, i) => (t.opacity = prev[i]));
-            hidden.forEach((h, i) => (h.visible = prevVis[i]));
+            overlays.forEach((o, i) => (o.visible = prevVis[i]));
+            hidden.forEach((h, i) => (h.visible = prevHidVis[i]));
         }
     }
     return images;

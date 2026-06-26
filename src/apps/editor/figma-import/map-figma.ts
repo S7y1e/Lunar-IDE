@@ -129,7 +129,7 @@ function mapNode(node: FigmaNode, parentBox?: Rect, isRoot = false): UiNode | nu
     const info = parseName(node.name);
     if (info.excluded) return null;
 
-    const guess = autoClass(node);
+    const guess = info.bg ? "ImageLabel" : autoClass(node);
     const cls = info.forcedClass ?? (isRoot ? "Frame" : guess);
     const box = node.absoluteBoundingBox;
     const pos =
@@ -137,6 +137,9 @@ function mapNode(node: FigmaNode, parentBox?: Rect, isRoot = false): UiNode | nu
             ? { x: Math.round(box.x - parentBox.x), y: Math.round(box.y - parentBox.y) }
             : { x: 0, y: 0 };
     const size = box ? { w: Math.round(box.width), h: Math.round(box.height) } : { w: 0, h: 0 };
+    const props = buildProps(node, cls);
+    if (info.noClip) props.clipsDescendants = false;
+    if (info.clip) props.clipsDescendants = true;
     return {
         id: node.id,
         name: info.name,
@@ -145,10 +148,10 @@ function mapNode(node: FigmaNode, parentBox?: Rect, isRoot = false): UiNode | nu
         guess,
         pos,
         size,
-        props: buildProps(node, cls),
-        children: (node.children ?? [])
-            .map((c) => mapNode(c, box))
-            .filter((c): c is UiNode => c !== null),
+        props,
+        children: info.bg
+            ? []
+            : (node.children ?? []).map((c) => mapNode(c, box)).filter((c): c is UiNode => c !== null),
     };
 }
 
