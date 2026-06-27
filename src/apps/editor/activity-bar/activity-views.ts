@@ -20,17 +20,20 @@ import {
     VscLightbulb,
     VscWarning,
     VscBeaker,
+    VscGitMerge,
+    VscPackage,
+    VscDashboard,
 } from "react-icons/vsc";
-import { FaFigma } from "react-icons/fa";
 
 export type ActivityViewId =
     | "project"
     | "search"
+    | "git"
     | "todo"
     | "structure"
-    | "figma"
     | "datamodel"
     | "deps"
+    | "packages"
     | "insights"
     | "problems"
     | "tests"
@@ -40,6 +43,7 @@ export type ActivityViewId =
     | "events"
     | "sync"
     | "runtime"
+    | "profiler"
     | "state"
     | "watches"
     | "logpoints"
@@ -64,6 +68,11 @@ export const ACTIVITY_VIEWS: ActivityView[] = [
         icon: VscSearch,
     },
     {
+        id: "git",
+        label: "Git",
+        icon: VscGitMerge,
+    },
+    {
         id: "todo",
         label: "TODO",
         icon: VscChecklist,
@@ -74,11 +83,6 @@ export const ACTIVITY_VIEWS: ActivityView[] = [
         icon: VscSymbolClass,
     },
     {
-        id: "figma",
-        label: "Figma",
-        icon: FaFigma,
-    },
-    {
         id: "datamodel",
         label: "DataModel",
         icon: VscListTree,
@@ -87,6 +91,11 @@ export const ACTIVITY_VIEWS: ActivityView[] = [
         id: "deps",
         label: "Dependencies",
         icon: VscReferences,
+    },
+    {
+        id: "packages",
+        label: "Packages",
+        icon: VscPackage,
     },
     {
         id: "insights",
@@ -132,6 +141,11 @@ export const ACTIVITY_VIEWS: ActivityView[] = [
         id: "runtime",
         label: "Runtime",
         icon: VscPulse,
+    },
+    {
+        id: "profiler",
+        label: "Profiler",
+        icon: VscDashboard,
     },
     {
         id: "state",

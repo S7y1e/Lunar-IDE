@@ -1,0 +1,285 @@
+@use "../styles/vars" as *;
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    background: $panel;
+    height: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    height: 32px;
+    padding: 0 6px 0 10px;
+    border-bottom: 1px solid $divider;
+}
+
+.title {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: $muted;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    user-select: none;
+}
+
+.count {
+    margin-left: 4px;
+    padding: 0 5px;
+    border-radius: 8px;
+    background: $hover;
+    color: $text;
+    font-size: 10px;
+}
+
+.actions {
+    display: flex;
+    gap: 2px;
+}
+
+.headerBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: $icon;
+    cursor: pointer;
+
+    &:hover {
+        background: $hover;
+        color: var(--text-bright);
+    }
+    &:disabled {
+        opacity: 0.4;
+        cursor: default;
+    }
+}
+
+.addRow {
+    display: flex;
+    gap: 4px;
+    padding: 6px 8px;
+    border-bottom: 1px solid $divider;
+}
+
+.inputWrap {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.input {
+    width: 100%;
+    box-sizing: border-box;
+    height: 24px;
+    padding: 0 6px;
+    background: $hover;
+    border: 1px solid $divider;
+    border-radius: 4px;
+    color: $text;
+    font-size: 12px;
+
+    &:focus {
+        outline: none;
+        border-color: #4a8af7;
+    }
+}
+
+.hits {
+    position: absolute;
+    top: 28px;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    max-height: 240px;
+    overflow: auto;
+    background: $panel;
+    border: 1px solid $divider;
+    border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.hit {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: baseline;
+    gap: 0 8px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 5px 9px;
+    background: transparent;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+        background: $hover;
+    }
+}
+
+.hitName {
+    color: $text;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.hitVer {
+    color: $muted;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+.hitDesc {
+    grid-column: 1 / -1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: $muted;
+    font-size: 11px;
+}
+
+.hitEmpty {
+    padding: 8px 10px;
+    color: $muted;
+    font-size: 12px;
+}
+
+.select {
+    height: 24px;
+    background: $hover;
+    border: 1px solid $divider;
+    border-radius: 4px;
+    color: $text;
+    font-size: 11px;
+}
+
+.body {
+    flex: 1;
+    overflow: auto;
+    padding: 4px 0;
+}
+
+.section {
+    padding: 8px 12px 4px;
+    color: $muted;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    user-select: none;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 8px 4px 12px;
+    font-size: 13px;
+
+    &:hover {
+        background: $hover;
+    }
+    &:hover .iconBtn {
+        opacity: 1;
+    }
+}
+
+.alias {
+    flex-shrink: 0;
+    color: $text;
+    font-weight: 500;
+}
+
+.name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: $muted;
+    font-size: 11px;
+}
+
+.ver {
+    flex-shrink: 0;
+    color: $muted;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+.iconBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: $icon;
+    cursor: pointer;
+    opacity: 0;
+
+    &:hover {
+        background: $divider;
+        color: var(--text-bright);
+    }
+}
+
+.err {
+    padding: 6px 12px;
+    color: $warning;
+    font-size: 12px;
+    border-bottom: 1px solid $divider;
+}
+
+.empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 28px 18px;
+    color: $muted;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+
+    code {
+        padding: 1px 4px;
+        background: $hover;
+        border-radius: 3px;
+        font-size: 11px;
+    }
+}
+
+.emptyIcon {
+    color: $icon;
+    opacity: 0.6;
+}
+
+.log {
+    flex-shrink: 0;
+    max-height: 140px;
+    margin: 0;
+    padding: 8px 12px;
+    overflow: auto;
+    border-top: 1px solid $divider;
+    color: $muted;
+    font-size: 11px;
+    font-family: var(--mono, monospace);
+    white-space: pre-wrap;
+    word-break: break-word;
+}

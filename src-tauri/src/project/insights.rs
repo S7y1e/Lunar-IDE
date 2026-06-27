@@ -191,6 +191,25 @@ pub fn build(root: &Path, tree: &DataModelNode) -> Insights {
         }
     }
 
+    // 11.2 — unused requires: `local Name = require(...)` where Name is never
+    // referenced again in the file. Auto-fixable (delete the line).
+    for f in &files {
+        if is_vendored(&f.file) {
+            continue;
+        }
+        if let Ok(content) = std::fs::read_to_string(root.join(&f.file)) {
+            for (name, line) in unused_requires(&content) {
+                findings.push(finding(
+                    "info",
+                    "unused-require",
+                    format!("Unused require: {name}"),
+                    f.file.clone(),
+                    line,
+                ));
+            }
+        }
+    }
+
     // 7.5 — unresolved requires.
     for u in &dep.unresolved {
         let needle = u
@@ -208,6 +227,85 @@ pub fn build(root: &Path, tree: &DataModelNode) -> Insights {
     }
 
     Insights { findings }
+}
+
+fn is_ident_byte(b: u8) -> bool {
+    b == b'_' || b.is_ascii_alphanumeric()
+}
+
+fn is_ident(name: &str) -> bool {
+    let mut chars = name.chars();
+    matches!(chars.next(), Some(c) if c == '_' || c.is_ascii_alphabetic())
+        && name.chars().all(|c| c == '_' || c.is_ascii_alphanumeric())
+}
+
+// Whole-word occurrence count of `word` in `text`.
+fn count_word(text: &str, word: &str) -> usize {
+    let bytes = text.as_bytes();
+    let mut count = 0;
+    let mut from = 0;
+    while let Some(rel) = text[from..].find(word) {
+        let pos = from + rel;
+        let before = pos == 0 || !is_ident_byte(bytes[pos - 1]);
+        let end = pos + word.len();
+        let after = end >= bytes.len() || !is_ident_byte(bytes[end]);
+        if before && after {
+            count += 1;
+        }
+        from = pos + 1;
+    }
+    count
+}
+
+// Lines `local Name = require(...)` whose Name is referenced nowhere else.
+fn unused_requires(content: &str) -> Vec<(String, u32)> {
+    let mut out = Vec::new();
+    for (i, raw) in content.lines().enumerate() {
+        let line = raw.trim_start();
+        let Some(rest) = line.strip_prefix("local ") else {
+            continue;
+        };
+        let Some((lhs, rhs)) = rest.split_once('=') else {
+            continue;
+        };
+        let name = lhs.trim();
+        if !is_ident(name) || !rhs.trim_start().starts_with("require") {
+            continue;
+        }
+        if count_word(content, name) == 1 {
+            out.push((name.to_string(), (i + 1) as u32));
+        }
+    }
+    out
+}
+
+#[tauri::command]
+pub fn project_fix(
+    store: State<'_, ProjectStore>,
+    kind: String,
+    file: String,
+    line: u32,
+) -> Result<(), String> {
+    let root = store.root().ok_or("No project open")?;
+    let path = root.join(&file);
+    match kind.as_str() {
+        "delete-file" => std::fs::remove_file(&path).map_err(|e| e.to_string()),
+        "delete-line" => {
+            let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+            let kept: Vec<&str> = content
+                .lines()
+                .enumerate()
+                .filter(|(i, _)| (*i as u32) + 1 != line)
+                .map(|(_, l)| l)
+                .collect();
+            let mut text = kept.join("\n");
+            if content.ends_with('\n') {
+                text.push('\n');
+            }
+            std::fs::write(&path, text).map_err(|e| e.to_string())
+        }
+        _ => Err(format!("Unknown fix: {kind}")),
+    }
 }
 
 struct Tarjan<'a> {

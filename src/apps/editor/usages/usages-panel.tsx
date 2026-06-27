@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { VscChevronDown } from "react-icons/vsc";
-import { memberUsages, type Usage } from "../../../lib/project";
+import { memberUsages, projectRequirers, type Usage } from "../../../lib/project";
 import Highlight from "../search/highlight";
 import styles from "../find/find.module.scss";
 
-export type UsageTarget = { fromFile: string; receiver: string; member: string };
+export type UsageTarget =
+    | { kind?: "member"; fromFile: string; receiver: string; member: string }
+    | { kind: "requirers"; file: string };
 
 const baseName = (rel: string) => rel.split("/").pop() ?? rel;
 
@@ -17,13 +19,28 @@ export default function UsagesPanel({ target, onOpenAt }: Props) {
     const [usages, setUsages] = useState<Usage[] | null>(null);
     const [loading, setLoading] = useState(false);
 
+    const requirers = target?.kind === "requirers";
+    const member = target && "member" in target ? target.member : undefined;
+
     useEffect(() => {
         if (!target) {
             setUsages(null);
             return;
         }
         setLoading(true);
-        memberUsages(target.fromFile, target.receiver, target.member)
+        const fetch =
+            target.kind === "requirers"
+                ? projectRequirers(target.file).then((files) =>
+                      files.map<Usage>((f) => ({
+                          file: f,
+                          line: 1,
+                          column: 1,
+                          text: f,
+                          call: false,
+                      })),
+                  )
+                : memberUsages(target.fromFile, target.receiver, target.member);
+        fetch
             .then(setUsages)
             .catch(() => setUsages([]))
             .finally(() => setLoading(false));
@@ -46,7 +63,7 @@ export default function UsagesPanel({ target, onOpenAt }: Props) {
             <div className={styles.header}>
                 <span className={styles.title}>
                     <VscChevronDown size={14} />
-                    Usages
+                    {requirers ? "Requirers" : "Usages"}
                 </span>
             </div>
 
@@ -55,7 +72,9 @@ export default function UsagesPanel({ target, onOpenAt }: Props) {
                     ? "Put the cursor on a member and run “Find Usages”."
                     : loading
                       ? "Searching…"
-                      : `${target.member}: ${total} usage${total === 1 ? "" : "s"} in ${groups.length} file${groups.length === 1 ? "" : "s"}`}
+                      : requirers
+                        ? `${total} module${total === 1 ? "" : "s"} require this`
+                        : `${member}: ${total} usage${total === 1 ? "" : "s"} in ${groups.length} file${groups.length === 1 ? "" : "s"}`}
             </div>
 
             <div className={styles.body}>
@@ -75,10 +94,7 @@ export default function UsagesPanel({ target, onOpenAt }: Props) {
                             >
                                 <span className={styles.line}>{u.line}</span>
                                 <span className={styles.preview}>
-                                    <Highlight
-                                        text={u.text}
-                                        query={target?.member ?? ""}
-                                    />
+                                    <Highlight text={u.text} query={member ?? ""} />
                                 </span>
                             </button>
                         ))}

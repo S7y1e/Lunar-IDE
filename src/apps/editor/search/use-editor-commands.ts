@@ -25,6 +25,8 @@ type Deps = {
     setSettingsOpen: (open: boolean) => void;
     showCallHierarchy: () => void;
     showFindUsages: () => void;
+    showRequirers: () => void;
+    organizeRequires: () => void | Promise<void>;
 };
 
 // Command surface: actions on the project, surfaced in the palette (type ">").
@@ -91,14 +93,28 @@ export function useEditorCommands(d: Deps): Command[] {
             { id: "view.datamodel", title: "Go to: DataModel", run: () => d.showView("datamodel") },
             { id: "view.structure", title: "Go to: Structure", run: () => d.showView("structure") },
             { id: "view.deps", title: "Go to: Dependencies", run: () => d.showView("deps") },
+            { id: "view.packages", title: "Go to: Packages", run: () => d.showView("packages") },
             { id: "view.insights", title: "Go to: Insights", run: () => d.showView("insights") },
             { id: "view.problems", title: "Go to: Problems", run: () => d.showView("problems") },
             { id: "view.hierarchy", title: "Go to: Hierarchy", run: () => d.showView("hierarchy") },
             { id: "callhierarchy.show", title: "Call Hierarchy", run: d.showCallHierarchy },
             { id: "usages.find", title: "Find Usages", run: d.showFindUsages },
+            {
+                id: "refactor.findRequirers",
+                title: "Refactor: Find Module Requirers",
+                hint: "who requires this module",
+                run: d.showRequirers,
+            },
+            {
+                id: "refactor.organizeRequires",
+                title: "Refactor: Organize Requires",
+                hint: "sort require statements",
+                run: d.organizeRequires,
+            },
             { id: "view.events", title: "Go to: Events", run: () => d.showView("events") },
             { id: "view.sync", title: "Go to: Sync", run: () => d.showView("sync") },
             { id: "view.runtime", title: "Go to: Runtime", run: () => d.showView("runtime") },
+            { id: "view.profiler", title: "Go to: Profiler", run: () => d.showView("profiler") },
             { id: "view.watches", title: "Go to: Watches", run: () => d.showView("watches") },
             { id: "view.logpoints", title: "Go to: Logpoints", run: () => d.showView("logpoints") },
             { id: "view.toolchain", title: "Go to: Toolchain", run: () => d.showView("toolchain") },
@@ -107,7 +123,8 @@ export function useEditorCommands(d: Deps): Command[] {
         [
             d.backend, d.port, d.status, d.startSync, d.stopSync, d.build, d.test,
             d.testCommand, d.runTests, d.clearRuntime, d.toggle, d.showView, d.activeFile,
-            d.toasts, d.showCallHierarchy, d.showFindUsages, d.openPalette,
+            d.toasts, d.showCallHierarchy, d.showFindUsages, d.showRequirers,
+            d.organizeRequires, d.openPalette,
         ],
     );
 }

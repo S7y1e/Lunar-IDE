@@ -1,3 +1,4 @@
+mod git;
 mod process_guard;
 mod project;
 mod roblox_api;
@@ -34,6 +35,14 @@ pub fn run() {
             project::dependencies::project_dependencies,
             project::events::project_events,
             project::insights::project_insights,
+            project::insights::project_fix,
+            project::packages::project_packages,
+            project::packages::package_add,
+            project::packages::package_remove,
+            project::packages::wally_install,
+            project::packages::wally_update,
+            project::refactor::project_requirers,
+            project::refactor::project_organize_requires,
             project::search::project_search,
             project::todos::project_todos,
             project::logpoints::logpoints_arm,
@@ -47,7 +56,15 @@ pub fn run() {
             runtime::runtime_bridge_status,
             runtime::runtime_enqueue,
             roblox_api::roblox_api,
-            studio::studio_play
+            studio::studio_play,
+            git::git_is_repo,
+            git::git_status,
+            git::git_log,
+            git::git_stage,
+            git::git_unstage,
+            git::git_stage_all,
+            git::git_discard,
+            git::git_commit
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

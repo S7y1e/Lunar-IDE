@@ -107,6 +107,16 @@ export function useEditorNavigation({
         showView("usages");
     }, [path, activeFile, showView, toasts]);
 
+    // Find which modules require the active module (reverse dependency edges).
+    const showRequirers = useCallback(() => {
+        if (!activeFile) {
+            toasts.push("error", "Open a module first");
+            return;
+        }
+        setUsageTarget({ kind: "requirers", file: toRelative(path, activeFile) });
+        showView("usages");
+    }, [path, activeFile, showView, toasts]);
+
     // Cross-file navigation for LSP go-to-definition / find-references: the
     // standalone Monaco can't open another file, so route its open requests
     // through Lunar's own openFile + reveal.
@@ -139,5 +149,6 @@ export function useEditorNavigation({
         openFileAt,
         showCallHierarchy,
         showFindUsages,
+        showRequirers,
     };
 }

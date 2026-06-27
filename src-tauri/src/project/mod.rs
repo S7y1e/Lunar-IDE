@@ -11,6 +11,8 @@ pub mod events;
 pub mod index;
 pub mod insights;
 pub mod logpoints;
+pub mod packages;
+pub mod refactor;
 pub mod search;
 pub mod sourcemap;
 pub mod testez;
@@ -150,6 +152,12 @@ pub struct DataModelNode {
 
 #[derive(Default)]
 pub struct ProjectStore(Mutex<Option<ProjectModel>>);
+
+impl ProjectStore {
+    pub fn root(&self) -> Option<PathBuf> {
+        self.0.lock().unwrap().as_ref().map(|m| m.root.clone())
+    }
+}
 
 #[tauri::command]
 pub fn project_open(

@@ -22,6 +22,7 @@ import { useStateInspector } from "./runtime/use-state-inspector";
 import { useEvalWatches } from "./runtime/use-eval-watches";
 import { useLogpoints } from "./runtime/use-logpoints";
 import { useInsights } from "./insights/use-insights";
+import { setFileFixes, registerInsightFixes } from "./insights/fixes";
 import { useTestResults } from "./tests/use-test-results";
 import { uriToPath, canonicalPath } from "./code-editor/luau-lsp/uri";
 import { toRelative } from "./data-model/instance-path";
@@ -40,10 +41,15 @@ import { useDataModel } from "./data-model/use-data-model";
 import StatusBar from "./status-bar/status-bar";
 import EditorOverlays from "./editor-overlays";
 import FigmaPreview from "./figma-import/figma-preview";
+import GitGraphOverlay from "./git/git-graph-overlay";
 import { mapFigma } from "./figma-import/map-figma";
 import { type FigmaNode, type UiNode } from "./figma-import/figma-types";
 import { type FigmaImage, parseUploadResult, setCachedAsset } from "./figma-import/upload-image";
-import { ProjectProvider, useProject } from "../../lib/project";
+import {
+    ProjectProvider,
+    useProject,
+    organizeRequires as organizeRequiresCmd,
+} from "../../lib/project";
 
 type Props = {
     path: string;
@@ -68,6 +74,7 @@ function EditorBody({ path }: Props) {
     const [cursor, setCursor] = useState<{ line: number; column: number } | null>(null);
     const [figmaTrees, setFigmaTrees] = useState<UiNode[]>([]);
     const [figmaOpen, setFigmaOpen] = useState(false);
+    const [graphOpen, setGraphOpen] = useState(false);
     const [figmaImages, setFigmaImages] = useState<FigmaImage[]>([]);
 
     const sync = useSyncServer(path);
@@ -184,6 +191,12 @@ function EditorBody({ path }: Props) {
     // Project Insights findings become squiggles on the active file.
     const insights = useInsights(path);
     useEffect(() => {
+        registerInsightFixes((uri) => {
+            const p = uriToPath(uri);
+            return p ? toRelative(path, p) : null;
+        });
+    }, [path]);
+    useEffect(() => {
         const OWNER = "lunar-insights";
         monaco.editor.getModels().forEach((m) => monaco.editor.setModelMarkers(m, OWNER, []));
         if (!activeFile || !activeRel || !insights.insights) return;
@@ -192,6 +205,7 @@ function EditorBody({ path }: Props) {
             .find((m) => canonicalPath(uriToPath(m.uri.toString())) === canonicalPath(activeFile));
         if (!model) return;
         const mine = insights.insights.findings.filter((f) => f.file === activeRel);
+        setFileFixes(activeRel, mine);
         monaco.editor.setModelMarkers(
             model,
             OWNER,
@@ -208,6 +222,27 @@ function EditorBody({ path }: Props) {
             })),
         );
     }, [activeFile, activeRel, insights.insights]);
+
+    const organizeRequires = async () => {
+        if (!activeRel) return;
+        try {
+            const text = await organizeRequiresCmd(activeRel);
+            if (!text) {
+                toasts.push("info", "Requires already organized");
+                return;
+            }
+            const model = editorRef.current?.getModel();
+            if (model) {
+                model.pushEditOperations(
+                    [],
+                    [{ range: model.getFullModelRange(), text }],
+                    () => null,
+                );
+            }
+        } catch (e) {
+            toasts.push("error", "Organize failed", String(e));
+        }
+    };
 
     const commands = useEditorCommands({
         backend: sync.backend,
@@ -229,6 +264,8 @@ function EditorBody({ path }: Props) {
         setSettingsOpen,
         showCallHierarchy: nav.showCallHierarchy,
         showFindUsages: nav.showFindUsages,
+        showRequirers: nav.showRequirers,
+        organizeRequires,
     });
     useGlobalKeybindings(commands);
     useUpdateCheck(toasts);
@@ -285,8 +322,7 @@ function EditorBody({ path }: Props) {
             renameNode={renameNode}
             onToggleTerminal={() => layout.toggle("terminal")}
             onStudioPlay={studioPlay}
-            figmaTrees={figmaTrees}
-            onFigmaOpen={() => setFigmaOpen(true)}
+            onOpenGraph={() => setGraphOpen(true)}
         />
     );
 
@@ -384,6 +420,10 @@ function EditorBody({ path }: Props) {
                     images={figmaImages}
                     onClose={() => setFigmaOpen(false)}
                 />
+            )}
+
+            {graphOpen && (
+                <GitGraphOverlay root={path} onClose={() => setGraphOpen(false)} />
             )}
         </div>
     );
