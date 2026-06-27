@@ -16,6 +16,13 @@ pub(super) enum Tok {
     Other,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub(super) struct Token {
+    pub kind: Tok,
+    pub start: usize,
+    pub end: usize,
+}
+
 pub(super) enum ChainArg {
     Path(Vec<String>),
     Str(String),
@@ -29,13 +36,19 @@ fn alias_chain(s: &str) -> Option<ChainArg> {
 }
 
 pub(super) fn lex(src: &str) -> Vec<Tok> {
+    lex_spanned(src).into_iter().map(|t| t.kind).collect()
+}
+
+pub(super) fn lex_spanned(src: &str) -> Vec<Token> {
     let b = src.as_bytes();
     let n = b.len();
     let mut i = 0;
     let mut out = Vec::new();
+    let push = |out: &mut Vec<Token>, kind, start, end| out.push(Token { kind, start, end });
 
     while i < n {
         let c = b[i];
+        let start = i;
         match c {
             b' ' | b'\t' | b'\r' | b'\n' => i += 1,
             b'-' if b.get(i + 1) == Some(&b'-') => {
@@ -50,64 +63,63 @@ pub(super) fn lex(src: &str) -> Vec<Tok> {
             }
             b'"' | b'\'' => {
                 let (s, ni) = read_quoted(b, i, c);
-                out.push(Tok::Str(s));
                 i = ni;
+                push(&mut out, Tok::Str(s), start, i);
             }
             b'[' if long_bracket_level(b, i).is_some() => {
                 let level = long_bracket_level(b, i).unwrap();
-                let start = i + 2 + level;
+                let inner = i + 2 + level;
                 let end = skip_long_bracket(b, i, level);
-                let inner_end = end.saturating_sub(level + 2).max(start);
-                out.push(Tok::Str(
-                    String::from_utf8_lossy(&b[start..inner_end]).into_owned(),
-                ));
+                let inner_end = end.saturating_sub(level + 2).max(inner);
+                let s = String::from_utf8_lossy(&b[inner..inner_end]).into_owned();
                 i = end;
+                push(&mut out, Tok::Str(s), start, i);
             }
             b'.' => {
-                out.push(Tok::Dot);
                 i += 1;
+                push(&mut out, Tok::Dot, start, i);
             }
             b':' => {
-                out.push(Tok::Colon);
                 i += 1;
+                push(&mut out, Tok::Colon, start, i);
             }
             b'(' => {
-                out.push(Tok::LParen);
                 i += 1;
+                push(&mut out, Tok::LParen, start, i);
             }
             b')' => {
-                out.push(Tok::RParen);
                 i += 1;
+                push(&mut out, Tok::RParen, start, i);
             }
             b',' => {
-                out.push(Tok::Comma);
                 i += 1;
+                push(&mut out, Tok::Comma, start, i);
             }
             b'=' => {
                 if b.get(i + 1) == Some(&b'=') {
-                    out.push(Tok::Other);
                     i += 2;
+                    push(&mut out, Tok::Other, start, i);
                 } else {
-                    out.push(Tok::Equal);
                     i += 1;
+                    push(&mut out, Tok::Equal, start, i);
                 }
             }
             _ if is_ident_start(c) => {
-                let start = i;
                 i += 1;
                 while i < n && is_ident_part(b[i]) {
                     i += 1;
                 }
                 let s = &src[start..i];
-                out.push(if s == "local" {
+                let kind = if s == "local" {
                     Tok::Local
                 } else {
                     Tok::Ident(s.to_string())
-                });
+                };
+                push(&mut out, kind, start, i);
             }
             _ => {
-                out.push(Tok::Other);
                 i += 1;
+                push(&mut out, Tok::Other, start, i);
             }
         }
     }
@@ -155,5 +167,43 @@ pub(super) fn parse_chain(tokens: &[Tok], mut i: usize) -> Option<ChainArg> {
             Some(ChainArg::Path(segs))
         }
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lex_unchanged_by_spans() {
+        let src = "local x = require(game.A):B('s') -- c\n[[long]]";
+        let kinds: Vec<Tok> = lex_spanned(src).into_iter().map(|t| t.kind).collect();
+        assert_eq!(kinds, lex(src));
+    }
+
+    #[test]
+    fn spans_slice_back_to_source() {
+        let src = "local foo = require(\"pkg\")";
+        for t in lex_spanned(src) {
+            let slice = &src[t.start..t.end];
+            match &t.kind {
+                Tok::Local => assert_eq!(slice, "local"),
+                Tok::Ident(n) => assert_eq!(slice, n),
+                Tok::Equal => assert_eq!(slice, "="),
+                Tok::LParen => assert_eq!(slice, "("),
+                Tok::RParen => assert_eq!(slice, ")"),
+                Tok::Str(_) => assert_eq!(slice, "\"pkg\""),
+                _ => {}
+            }
+        }
+    }
+
+    #[test]
+    fn long_string_span_covers_brackets() {
+        let src = "x = [[hi]]";
+        let toks = lex_spanned(src);
+        let s = toks.iter().find(|t| matches!(t.kind, Tok::Str(_))).unwrap();
+        assert_eq!(&src[s.start..s.end], "[[hi]]");
+        assert_eq!(s.kind, Tok::Str("hi".to_string()));
     }
 }
