@@ -6,7 +6,7 @@ import { RuntimeMessage } from "./use-runtime-bridge";
 import RuntimeLine from "./runtime-line";
 import ErrorCard from "./error-card";
 import { groupMessages } from "./error-group";
-import { isEngineNoise } from "./runtime-filter";
+import { isEngineNoise, isInternalLine } from "./runtime-filter";
 
 type Props = {
     messages: RuntimeMessage[];
@@ -51,6 +51,7 @@ export default function RuntimePanel({
     const filtered = useMemo(
         () =>
             messages.filter((m) => {
+                if (isInternalLine(m.text)) return false;
                 if (hideNoise && isEngineNoise(m.text)) return false;
                 if (needle && !m.text.toLowerCase().includes(needle)) return false;
                 return true;

@@ -13,3 +13,12 @@ const NOISE: RegExp[] = [
 export function isEngineNoise(text: string): boolean {
     return NOISE.some((re) => re.test(text));
 }
+
+// Internal Lunar protocol lines (profiler samples, asset-upload results) travel
+// over the bridge's print channel — the IDE parses them, so they're never meant
+// for the user's console. Hidden unconditionally.
+const INTERNAL = /^\s*\[lunar-[\w-]+\]/i;
+
+export function isInternalLine(text: string): boolean {
+    return INTERNAL.test(text);
+}

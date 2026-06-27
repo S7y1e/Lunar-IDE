@@ -61,7 +61,10 @@
     },
     {
       "identifier": "http:default",
-      "allow": [{ "url": "https://api.figma.com/*" }]
+      "allow": [
+        { "url": "https://api.figma.com/*" },
+        { "url": "https://api.wally.run/*" }
+      ]
     },
     "shell:allow-stdin-write",
     "shell:allow-kill",

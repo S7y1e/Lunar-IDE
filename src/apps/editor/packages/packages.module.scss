@@ -75,9 +75,15 @@
     border-bottom: 1px solid $divider;
 }
 
-.input {
+.inputWrap {
+    position: relative;
     flex: 1;
     min-width: 0;
+}
+
+.input {
+    width: 100%;
+    box-sizing: border-box;
     height: 24px;
     padding: 0 6px;
     background: $hover;
@@ -90,6 +96,65 @@
         outline: none;
         border-color: #4a8af7;
     }
+}
+
+.hits {
+    position: absolute;
+    top: 28px;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    max-height: 240px;
+    overflow: auto;
+    background: $panel;
+    border: 1px solid $divider;
+    border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.hit {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: baseline;
+    gap: 0 8px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 5px 9px;
+    background: transparent;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+        background: $hover;
+    }
+}
+
+.hitName {
+    color: $text;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.hitVer {
+    color: $muted;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+.hitDesc {
+    grid-column: 1 / -1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: $muted;
+    font-size: 11px;
+}
+
+.hitEmpty {
+    padding: 8px 10px;
+    color: $muted;
+    font-size: 12px;
 }
 
 .select {

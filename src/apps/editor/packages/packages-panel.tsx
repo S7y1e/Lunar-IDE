@@ -9,7 +9,9 @@ import {
     VscPackage,
 } from "react-icons/vsc";
 import { usePackages } from "./use-packages";
+import { useWallySearch } from "./use-wally-search";
 import { packageAdd, packageRemove, type Package, type PackageKind } from "../../../lib/packages";
+import { type WallyHit } from "../../../lib/wally-search";
 import styles from "./packages.module.scss";
 
 const KINDS: { id: PackageKind; label: string }[] = [
@@ -26,6 +28,14 @@ export default function PackagesPanel({ root }: Props) {
     const [spec, setSpec] = useState("");
     const [kind, setKind] = useState<PackageKind>("shared");
     const [err, setErr] = useState<string | null>(null);
+    const [focused, setFocused] = useState(false);
+    const { hits, loading: searching } = useWallySearch(spec);
+    const showHits = focused && (hits.length > 0 || searching);
+
+    const pick = (h: WallyHit) => {
+        setSpec(`${h.scope}/${h.name}@${h.versions[0] ?? ""}`);
+        setFocused(false);
+    };
 
     const add = async () => {
         if (!spec.trim()) return;
@@ -94,13 +104,45 @@ export default function PackagesPanel({ root }: Props) {
 
             {list?.hasWally && (
                 <div className={styles.addRow}>
-                    <input
-                        className={styles.input}
-                        placeholder="scope/name@version"
-                        value={spec}
-                        onChange={(e) => setSpec(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && add()}
-                    />
+                    <div className={styles.inputWrap}>
+                        <input
+                            className={styles.input}
+                            placeholder="search or scope/name@version"
+                            value={spec}
+                            onChange={(e) => setSpec(e.target.value)}
+                            onFocus={() => setFocused(true)}
+                            onBlur={() => setTimeout(() => setFocused(false), 150)}
+                            onKeyDown={(e) => e.key === "Enter" && add()}
+                        />
+                        {showHits && (
+                            <div className={styles.hits}>
+                                {hits.length === 0 && searching ? (
+                                    <div className={styles.hitEmpty}>Searching…</div>
+                                ) : (
+                                    hits.slice(0, 8).map((h) => (
+                                        <button
+                                            key={`${h.scope}/${h.name}`}
+                                            className={styles.hit}
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            onClick={() => pick(h)}
+                                        >
+                                            <span className={styles.hitName}>
+                                                {h.scope}/{h.name}
+                                            </span>
+                                            <span className={styles.hitVer}>
+                                                {h.versions[0]}
+                                            </span>
+                                            {h.description && (
+                                                <span className={styles.hitDesc}>
+                                                    {h.description}
+                                                </span>
+                                            )}
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        )}
+                    </div>
                     <select
                         className={styles.select}
                         value={kind}
