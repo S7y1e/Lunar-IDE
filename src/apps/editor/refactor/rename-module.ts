@@ -1,6 +1,6 @@
 import { join } from "@tauri-apps/api/path";
 import { readTextFile, writeTextFile, rename } from "@tauri-apps/plugin-fs";
-import { getProjectDependencies } from "../../../lib/project";
+import { renameEdits } from "../../../lib/project";
 import { toRelative } from "../data-model/instance-path";
 
 // Order matters: longest suffix first so "X.server.luau" strips to "X".
@@ -12,9 +12,6 @@ const SUFFIXES = [
     ".luau",
     ".lua",
 ];
-
-// Only lines that look like an instance reference get rewritten.
-const TRIGGER = /require|WaitForChild|FindFirstChild/;
 
 export type RenameEdit = {
     file: string;
@@ -43,43 +40,11 @@ function splitModule(rel: string): { dir: string; name: string; suffix: string }
     return null;
 }
 
-const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-// Every line in a dependent of oldRel that references the old instance name,
-// rewritten to the new name. Shared by both rename entry points.
-async function collectEdits(
-    root: string,
-    oldRel: string,
-    oldName: string,
-    newName: string
-): Promise<RenameEdit[]> {
-    const graph = await getProjectDependencies();
-    const dependents = (graph?.edges ?? [])
-        .filter((e) => e.to === oldRel)
-        .map((e) => e.from);
-
-    const word = new RegExp(`\\b${escape(oldName)}\\b`);
-    const sub = new RegExp(`\\b${escape(oldName)}\\b`, "g");
-    const edits: RenameEdit[] = [];
-    for (const dep of dependents) {
-        let text: string;
-        try {
-            text = await readTextFile(await join(root, ...dep.split("/")));
-        } catch {
-            continue;
-        }
-        text.split(/\r?\n/).forEach((line, i) => {
-            if (TRIGGER.test(line) && word.test(line)) {
-                edits.push({
-                    file: dep,
-                    line: i + 1,
-                    before: line,
-                    after: line.replace(sub, newName),
-                });
-            }
-        });
-    }
-    return edits;
+// Precise per-line edits across dependents, resolved over the owned model in
+// Rust (require chains + WaitForChild/FindFirstChild literals that actually name
+// this module). `oldName` is unused — Rust derives it from the model.
+async function collectEdits(oldRel: string, newName: string): Promise<RenameEdit[]> {
+    return renameEdits(oldRel, newName);
 }
 
 // Build (don't apply) the rename plan from a bare new name (extension kept).
@@ -95,7 +60,7 @@ export async function buildRenamePlan(
 
     const nn = newName.trim();
     const newRel = `${mod.dir}${nn}${mod.suffix}`;
-    const edits = nn === mod.name ? [] : await collectEdits(root, oldRel, mod.name, nn);
+    const edits = nn === mod.name ? [] : await collectEdits(oldRel, nn);
     return { oldRel, newRel, oldName: mod.name, newName: nn, edits };
 }
 
@@ -115,9 +80,7 @@ export async function buildRenamePlanForFile(
     const newRel = `${mod.dir}${newFullName.trim()}`;
     const newName = splitModule(newRel)?.name ?? null;
     const edits =
-        newName && newName !== mod.name
-            ? await collectEdits(root, oldRel, mod.name, newName)
-            : [];
+        newName && newName !== mod.name ? await collectEdits(oldRel, newName) : [];
     return { oldRel, newRel, oldName: mod.name, newName: newName ?? newFullName.trim(), edits };
 }
 

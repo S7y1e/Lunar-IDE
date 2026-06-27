@@ -228,6 +228,19 @@ export function organizeRequires(file: string): Promise<string | null> {
     return invoke("project_organize_requires", { file });
 }
 
+export interface RenameLineEdit {
+    file: string;
+    line: number;
+    before: string;
+    after: string;
+}
+
+// Precise cross-file edits to rename `file`'s module to `newName` (requires +
+// WaitForChild/FindFirstChild), resolved over the owned model.
+export function renameEdits(file: string, newName: string): Promise<RenameLineEdit[]> {
+    return invoke("project_rename_edits", { file, newName });
+}
+
 const ProjectContext = createContext<ProjectSnapshot | null>(null);
 
 export function ProjectProvider({

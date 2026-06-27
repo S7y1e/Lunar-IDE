@@ -43,6 +43,7 @@ pub fn run() {
             project::packages::wally_update,
             project::refactor::project_requirers,
             project::refactor::project_organize_requires,
+            project::refactor::project_rename_edits,
             project::search::project_search,
             project::todos::project_todos,
             project::logpoints::logpoints_arm,

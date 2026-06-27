@@ -126,9 +126,18 @@ pub(super) fn lex_spanned(src: &str) -> Vec<Token> {
     out
 }
 
-pub(super) fn parse_chain(tokens: &[Tok], mut i: usize) -> Option<ChainArg> {
+pub(super) fn parse_chain(tokens: &[Tok], i: usize) -> Option<ChainArg> {
+    parse_chain_at(tokens, i).map(|(arg, _)| arg)
+}
+
+// Like parse_chain, but also returns the index one past the last consumed token,
+// so callers with spans can locate the trailing segment's token.
+pub(super) fn parse_chain_at(tokens: &[Tok], mut i: usize) -> Option<(ChainArg, usize)> {
     match tokens.get(i)? {
-        Tok::Str(s) => Some(alias_chain(s).unwrap_or_else(|| ChainArg::Str(s.clone()))),
+        Tok::Str(s) => Some((
+            alias_chain(s).unwrap_or_else(|| ChainArg::Str(s.clone())),
+            i + 1,
+        )),
         Tok::Ident(name) => {
             let mut segs = vec![name.clone()];
             i += 1;
@@ -164,7 +173,7 @@ pub(super) fn parse_chain(tokens: &[Tok], mut i: usize) -> Option<ChainArg> {
                     _ => break,
                 }
             }
-            Some(ChainArg::Path(segs))
+            Some((ChainArg::Path(segs), i))
         }
         _ => None,
     }
