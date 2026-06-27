@@ -1,5 +1,6 @@
-import { VscChevronDown, VscRefresh, VscLightbulb } from "react-icons/vsc";
+import { VscChevronDown, VscRefresh, VscLightbulb, VscWand } from "react-icons/vsc";
 import { type useInsights } from "./use-insights";
+import { fixFor, applyDiskFix } from "./fixes";
 import { type InsightFinding } from "../../../lib/project";
 import styles from "./insights.module.scss";
 
@@ -10,6 +11,7 @@ const dirOf = (rel: string) => {
 
 const CATEGORIES: { id: string; label: string }[] = [
     { id: "orphan", label: "Orphan modules" },
+    { id: "unused-require", label: "Unused requires" },
     { id: "cycle", label: "Require cycles" },
     { id: "layer", label: "Layer violations" },
     { id: "dangling-event", label: "Dangling events" },
@@ -30,18 +32,40 @@ export default function InsightsPanel({ insights, onOpenAt }: Props) {
         items: findings.filter((f) => f.category === c.id),
     })).filter((g) => g.items.length > 0);
 
-    const row = (f: InsightFinding, i: number) => (
-        <button
-            key={`${f.file}-${i}`}
-            className={styles.row}
-            onClick={() => onOpenAt(f.file, f.line, 0)}
-            title={`${f.file}:${f.line}`}
-        >
-            <span className={`${styles.dot} ${styles[f.severity] ?? ""}`} />
-            <span className={styles.message}>{f.message}</span>
-            <span className={styles.path}>{dirOf(f.file)}</span>
-        </button>
-    );
+    const fixAndRefresh = async (f: InsightFinding) => {
+        try {
+            await applyDiskFix(f);
+            refresh();
+        } catch {
+            /* surfaced by the fs-watch refresh anyway */
+        }
+    };
+
+    const row = (f: InsightFinding, i: number) => {
+        const fix = fixFor(f.category);
+        return (
+            <div key={`${f.file}-${i}`} className={styles.row}>
+                <button
+                    className={styles.rowMain}
+                    onClick={() => onOpenAt(f.file, f.line, 0)}
+                    title={`${f.file}:${f.line}`}
+                >
+                    <span className={`${styles.dot} ${styles[f.severity] ?? ""}`} />
+                    <span className={styles.message}>{f.message}</span>
+                    <span className={styles.path}>{dirOf(f.file)}</span>
+                </button>
+                {fix && (
+                    <button
+                        className={styles.fixBtn}
+                        title={fix.label}
+                        onClick={() => fixAndRefresh(f)}
+                    >
+                        <VscWand size={13} />
+                    </button>
+                )}
+            </div>
+        );
+    };
 
     return (
         <div className={styles.sidebar}>

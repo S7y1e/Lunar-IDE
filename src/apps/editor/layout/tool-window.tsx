@@ -4,12 +4,12 @@ import Sidebar from "../file-tree/sidebar";
 import FindPanel from "../find/find-panel";
 import TodoPanel from "../todo/todo-panel";
 import StructurePanel from "../structure/structure-panel";
-import FigmaPanel from "../figma-import/figma-panel";
-import { type UiNode } from "../figma-import/figma-types";
+import GitPanel from "../git/git-panel";
 import SyncPanel from "../sync/sync-panel";
 import ToolchainPanel from "../toolchain/toolchain-panel";
 import DataModelPanel from "../data-model/data-model-panel";
 import DependenciesPanel from "../dependencies/dependencies-panel";
+import PackagesPanel from "../packages/packages-panel";
 import InsightsPanel from "../insights/insights-panel";
 import ProblemsPanel from "../problems/problems-panel";
 import TestsPanel from "../tests/tests-panel";
@@ -18,6 +18,7 @@ import CallHierarchyPanel, { type CallTarget } from "../callhierarchy/call-hiera
 import UsagesPanel, { type UsageTarget } from "../usages/usages-panel";
 import EventsPanel from "../events/events-panel";
 import RuntimePanel from "../runtime/runtime-panel";
+import ProfilerPanel from "../runtime/profiler-panel";
 import StatePanel from "../runtime/state-panel";
 import EvalWatchPanel from "../runtime/eval-watch-panel";
 import LogpointPanel from "../runtime/logpoint-panel";
@@ -54,8 +55,7 @@ type Props = {
     renameNode: (node: FileNode, newName: string) => Promise<string | null>;
     onToggleTerminal: () => void;
     onStudioPlay: (stop: boolean) => void;
-    onFigmaOpen: () => void;
-    figmaTrees: UiNode[];
+    onOpenGraph: () => void;
 };
 
 // Render a tool window's content by id — keyed by tool so any tool can dock anywhere.
@@ -67,8 +67,8 @@ export default function ToolWindow(p: Props): ReactNode {
             return <TodoPanel root={p.path} onOpenAt={p.openFileAt} />;
         case "structure":
             return <StructurePanel activeFile={p.activeFile} onGoTo={p.goToLine} />;
-        case "figma":
-            return <FigmaPanel onOpen={p.onFigmaOpen} trees={p.figmaTrees} />;
+        case "git":
+            return <GitPanel root={p.path} onOpenAt={p.openFileAt} onOpenGraph={p.onOpenGraph} />;
         case "sync":
             return (
                 <SyncPanel
@@ -102,6 +102,8 @@ export default function ToolWindow(p: Props): ReactNode {
             return <DataModelPanel root={p.path} activeFile={p.activeFile} onOpenFile={p.openFile} />;
         case "deps":
             return <DependenciesPanel root={p.path} activeFile={p.activeFile} onOpenFile={p.openFile} />;
+        case "packages":
+            return <PackagesPanel root={p.path} />;
         case "insights":
             return <InsightsPanel insights={p.insights} onOpenAt={p.openFileAt} />;
         case "problems":
@@ -137,6 +139,8 @@ export default function ToolWindow(p: Props): ReactNode {
                     root={p.path}
                 />
             );
+        case "profiler":
+            return <ProfilerPanel messages={p.runtime.messages} />;
         case "state":
             return (
                 <StatePanel

@@ -220,6 +220,14 @@ export function getProjectInsights(): Promise<Insights | null> {
     return invoke("project_insights");
 }
 
+export function projectRequirers(file: string): Promise<string[]> {
+    return invoke("project_requirers", { file });
+}
+
+export function organizeRequires(file: string): Promise<string | null> {
+    return invoke("project_organize_requires", { file });
+}
+
 const ProjectContext = createContext<ProjectSnapshot | null>(null);
 
 export function ProjectProvider({
