@@ -154,8 +154,21 @@ pub fn project_rename_edits(
                             == Some(&old_chain);
                         if hit {
                             if let Some(tok) = spanned.get(end - 1) {
-                                if tok.kind == Tok::Ident(old_name.clone()) {
-                                    reps.push((tok.start, tok.end, new_name.clone()));
+                                match &tok.kind {
+                                    // dotted form: require(a.b.Old)
+                                    Tok::Ident(idn) if idn == &old_name => {
+                                        reps.push((tok.start, tok.end, new_name.clone()));
+                                    }
+                                    // string form: require("@game/.../Old") — rewrite the
+                                    // trailing path segment inside the literal only.
+                                    Tok::Str(_) => {
+                                        if let Some(ns) = tok.end.checked_sub(1 + old_name.len()) {
+                                            if content.get(ns..tok.end - 1) == Some(old_name.as_str()) {
+                                                reps.push((ns, tok.end - 1, new_name.clone()));
+                                            }
+                                        }
+                                    }
+                                    _ => {}
                                 }
                             }
                         }

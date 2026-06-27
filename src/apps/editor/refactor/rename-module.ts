@@ -1,7 +1,9 @@
 import { join } from "@tauri-apps/api/path";
+import { invoke } from "@tauri-apps/api/core";
 import { readTextFile, writeTextFile, rename } from "@tauri-apps/plugin-fs";
 import { renameEdits } from "../../../lib/project";
 import { toRelative } from "../data-model/instance-path";
+import { getCurrentLspClient } from "../code-editor/luau-lsp/lsp-registry";
 
 // Order matters: longest suffix first so "X.server.luau" strips to "X".
 const SUFFIXES = [
@@ -112,5 +114,13 @@ export async function applyRenamePlan(
     const oldAbs = await join(root, ...plan.oldRel.split("/"));
     const newAbs = await join(root, ...plan.newRel.split("/"));
     await rename(oldAbs, newAbs);
+
+    // The module moved on disk, so the owned sourcemap is now stale and luau-lsp
+    // won't re-diagnose already-open files on its own. Regenerate it, then have
+    // the client reload the sourcemap in the server and re-open docs so stale
+    // "unresolved require" squiggles clear.
+    await invoke("project_write_sourcemap").catch(() => {});
+    getCurrentLspClient()?.revalidate();
+
     return newAbs;
 }

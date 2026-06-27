@@ -171,6 +171,39 @@ export class LuauLspClient {
         });
     }
 
+    /**
+     * After a rename regenerates the sourcemap: tell the server the sourcemap
+     * changed (don't wait for the FS watcher), then once it has reloaded, force a
+     * fresh analysis of open docs. A didChange with identical text is ignored by
+     * the server, so we didClose+didOpen instead — equivalent to the user
+     * deleting and retyping the require, which is the only thing that cleared the
+     * stale "unresolved require" squiggle.
+     */
+    revalidate(): void {
+        this.ready.then(() => {
+            this.conn.sendNotification("workspace/didChangeWatchedFiles", {
+                changes: [{ uri: `${this.rootUri}/sourcemap.json`, type: 2 }],
+            });
+            // Let the server finish reading the reloaded sourcemap before we ask
+            // it to re-analyze; messages are ordered, the delay covers the async
+            // file read.
+            setTimeout(() => this.reopenOpenDocuments(), 300);
+        });
+    }
+
+    /** Drop and re-add every open doc so the server re-analyzes from scratch. */
+    private reopenOpenDocuments(): void {
+        for (const [uri, text] of this.openDocs) {
+            this.conn.sendNotification("textDocument/didClose", {
+                textDocument: { uri },
+            });
+            this.versions.set(uri, 1);
+            this.conn.sendNotification("textDocument/didOpen", {
+                textDocument: { uri, languageId: "luau", version: 1, text },
+            });
+        }
+    }
+
     /** Re-send the current text of every open doc to trigger a fresh analysis. */
     private refreshOpenDocuments(): void {
         for (const [uri, text] of this.openDocs) {
