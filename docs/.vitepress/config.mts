@@ -3,6 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: "Lunar IDE",
   description: "A real IDE for Roblox development",
+  base: '/lunar-ide/',
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },
