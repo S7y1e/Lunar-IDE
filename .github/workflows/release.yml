@@ -109,8 +109,28 @@ jobs:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
 
+  plugins:
+    needs: create-release
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package and upload plugins
+        run: |
+          set -euo pipefail
+          TAG=$(gh api "repos/${REPO}/releases/${RELEASE_ID}" --jq .tag_name)
+          (cd figma-plugin && zip -r ../lunar-figma-plugin.zip .)
+          gh release upload "$TAG" \
+            studio-plugin/LunarBridge.rbxm \
+            lunar-figma-plugin.zip \
+            --clobber --repo "$REPO"
+
   checksums:
-    needs: [create-release, build]
+    needs: [create-release, build, plugins]
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
