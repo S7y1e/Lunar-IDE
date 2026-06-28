@@ -4,7 +4,7 @@ use std::path::Path;
 use serde::Serialize;
 use tauri::State;
 
-use super::luau_lex::{lex, parse_chain, ChainArg, Tok};
+use super::luau_lex::{lex_spanned, parse_chain, ChainArg, Tok};
 use super::{DataModelNode, ProjectStore};
 
 const SCRIPT_EXT: [&str; 2] = [".luau", ".lua"];
@@ -24,6 +24,7 @@ pub struct DependencyEdge {
 pub struct UnresolvedRequire {
     pub from: String,
     pub expr: String,
+    pub line: u32,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -108,14 +109,23 @@ pub fn build(root: &Path, tree: &DataModelNode) -> DependencyGraph {
             Ok(c) => c,
             Err(_) => continue,
         };
-        let tokens = lex(&content);
+        let spanned = lex_spanned(&content);
+        let tokens: Vec<Tok> = spanned.iter().map(|t| t.kind.clone()).collect();
         let locals = collect_locals(&tokens, chain, &root_name, &services);
+        let starts = line_starts(&content);
 
-        for require in find_requires(&tokens) {
-            match require {
+        for i in 0..tokens.len() {
+            let Tok::Ident(name) = &tokens[i] else { continue };
+            if name != "require" || tokens.get(i + 1) != Some(&Tok::LParen) {
+                continue;
+            }
+            let Some(arg) = parse_chain(&tokens, i + 2) else { continue };
+            let line = line_at(&starts, spanned[i].start);
+            match arg {
                 ChainArg::Str(s) => unresolved.push(UnresolvedRequire {
                     from: file.clone(),
                     expr: format!("\"{s}\""),
+                    line,
                 }),
                 ChainArg::Path(segs) => {
                     let target =
@@ -133,6 +143,7 @@ pub fn build(root: &Path, tree: &DataModelNode) -> DependencyGraph {
                         None => unresolved.push(UnresolvedRequire {
                             from: file.clone(),
                             expr: segs.join("."),
+                            line,
                         }),
                     }
                 }
@@ -197,16 +208,34 @@ pub(super) fn collect_locals(
     locals
 }
 
-fn find_requires(tokens: &[Tok]) -> Vec<ChainArg> {
-    let mut out = Vec::new();
-    for i in 0..tokens.len() {
-        if let Tok::Ident(name) = &tokens[i] {
-            if name == "require" && matches!(tokens.get(i + 1), Some(Tok::LParen)) {
-                if let Some(arg) = parse_chain(tokens, i + 2) {
-                    out.push(arg);
-                }
-            }
+fn line_starts(content: &str) -> Vec<usize> {
+    let mut v = vec![0usize];
+    for (i, b) in content.bytes().enumerate() {
+        if b == b'\n' {
+            v.push(i + 1);
         }
     }
-    out
+    v
+}
+
+// 1-based line containing byte offset `off`.
+fn line_at(starts: &[usize], off: usize) -> u32 {
+    starts.partition_point(|&s| s <= off) as u32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn line_at_finds_the_require_line() {
+        // the earlier require_line heuristic mis-attributed this to line 1 because
+        // "Shared" also appears in the MathTest path there.
+        let src = "local M = require(\"@game/ReplicatedStorage/Shared/MathTest\")\n\
+                   local Shared = game:GetService(\"X\")\n\
+                   local H = require(Shared:WaitForChild(\"Hello\"))\n";
+        let starts = line_starts(src);
+        let off = src.rfind("require").unwrap();
+        assert_eq!(line_at(&starts, off), 3);
+    }
 }

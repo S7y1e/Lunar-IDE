@@ -49,6 +49,7 @@ import {
     ProjectProvider,
     useProject,
     organizeRequires as organizeRequiresCmd,
+    organizeImports as organizeImportsCmd,
 } from "../../lib/project";
 
 type Props = {
@@ -71,6 +72,7 @@ function EditorBody({ path }: Props) {
     const palette = useCommandPalette();
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [renaming, setRenaming] = useState(false);
+    const [moving, setMoving] = useState(false);
     const [cursor, setCursor] = useState<{ line: number; column: number } | null>(null);
     const [figmaTrees, setFigmaTrees] = useState<UiNode[]>([]);
     const [figmaOpen, setFigmaOpen] = useState(false);
@@ -206,10 +208,14 @@ function EditorBody({ path }: Props) {
         if (!model) return;
         const mine = insights.insights.findings.filter((f) => f.file === activeRel);
         setFileFixes(activeRel, mine);
+        // luau-lsp already squiggles unused locals (yellow); don't double-mark them
+        // blue. The finding stays in the Insights panel + lightbulb quick-fix.
         monaco.editor.setModelMarkers(
             model,
             OWNER,
-            mine.map((f) => ({
+            mine
+                .filter((f) => f.category !== "unused-require")
+                .map((f) => ({
                 severity:
                     f.severity === "info"
                         ? monaco.MarkerSeverity.Info
@@ -221,14 +227,24 @@ function EditorBody({ path }: Props) {
                 endColumn: 1000,
             })),
         );
+        // Insights are computed from disk; once the buffer diverges (typing, or a
+        // rename/move rewriting the file) these squiggles are stale, so drop them
+        // immediately. The next save refreshes insights and re-marks accurately.
+        const sub = model.onDidChangeContent(() =>
+            monaco.editor.setModelMarkers(model, OWNER, []),
+        );
+        return () => sub.dispose();
     }, [activeFile, activeRel, insights.insights]);
 
-    const organizeRequires = async () => {
+    const applyOrganize = async (
+        cmd: (file: string) => Promise<string | null>,
+        idleMsg: string,
+    ) => {
         if (!activeRel) return;
         try {
-            const text = await organizeRequiresCmd(activeRel);
+            const text = await cmd(activeRel);
             if (!text) {
-                toasts.push("info", "Requires already organized");
+                toasts.push("info", idleMsg);
                 return;
             }
             const model = editorRef.current?.getModel();
@@ -243,6 +259,10 @@ function EditorBody({ path }: Props) {
             toasts.push("error", "Organize failed", String(e));
         }
     };
+    const organizeRequires = () =>
+        applyOrganize(organizeRequiresCmd, "Requires already organized");
+    const organizeImports = () =>
+        applyOrganize(organizeImportsCmd, "Imports already tidy");
 
     const commands = useEditorCommands({
         backend: sync.backend,
@@ -261,11 +281,13 @@ function EditorBody({ path }: Props) {
         activeFile,
         toasts,
         setRenaming,
+        setMoving,
         setSettingsOpen,
         showCallHierarchy: nav.showCallHierarchy,
         showFindUsages: nav.showFindUsages,
         showRequirers: nav.showRequirers,
         organizeRequires,
+        organizeImports,
     });
     useGlobalKeybindings(commands);
     useUpdateCheck(toasts);
@@ -408,8 +430,10 @@ function EditorBody({ path }: Props) {
                 settingsOpen={settingsOpen}
                 onCloseSettings={() => setSettingsOpen(false)}
                 renaming={renaming}
+                moving={moving}
                 activeFile={activeFile}
                 onCloseRename={() => setRenaming(false)}
+                onCloseMove={() => setMoving(false)}
                 renameFile={renameFile}
                 toasts={toasts}
             />

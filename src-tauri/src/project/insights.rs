@@ -210,19 +210,14 @@ pub fn build(root: &Path, tree: &DataModelNode) -> Insights {
         }
     }
 
-    // 7.5 — unresolved requires.
+    // 7.5 — unresolved requires (line comes precise from the spanned scan).
     for u in &dep.unresolved {
-        let needle = u
-            .expr
-            .rsplit(|c: char| c == '.' || c == '/' || c == '"' || c == '\\')
-            .find(|s| !s.is_empty())
-            .unwrap_or(&u.expr);
         findings.push(finding(
             "info",
             "unresolved",
             format!("Unresolved require: {}", u.expr),
             u.from.clone(),
-            require_line(root, &u.from, needle),
+            u.line,
         ));
     }
 
@@ -240,7 +235,7 @@ fn is_ident(name: &str) -> bool {
 }
 
 // Whole-word occurrence count of `word` in `text`.
-fn count_word(text: &str, word: &str) -> usize {
+pub(super) fn count_word(text: &str, word: &str) -> usize {
     let bytes = text.as_bytes();
     let mut count = 0;
     let mut from = 0;

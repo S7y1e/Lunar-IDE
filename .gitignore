@@ -8,6 +8,8 @@
 /tmp
 /out-tsc
 /dist
+# docs-site git worktree (checked out to main), not part of this branch
+/lunar-docs
 src-tauri/target/
 src-tauri/target-check/
 .DS_Store
