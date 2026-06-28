@@ -22,11 +22,13 @@ type Deps = {
     activeFile: string | null;
     toasts: ReturnType<typeof useToasts>;
     setRenaming: (open: boolean) => void;
+    setMoving: (open: boolean) => void;
     setSettingsOpen: (open: boolean) => void;
     showCallHierarchy: () => void;
     showFindUsages: () => void;
     showRequirers: () => void;
     organizeRequires: () => void | Promise<void>;
+    organizeImports: () => void | Promise<void>;
 };
 
 // Command surface: actions on the project, surfaced in the palette (type ">").
@@ -111,6 +113,21 @@ export function useEditorCommands(d: Deps): Command[] {
                 hint: "sort require statements",
                 run: d.organizeRequires,
             },
+            {
+                id: "refactor.organizeImports",
+                title: "Refactor: Organize Imports",
+                hint: "sort whole block + drop unused",
+                run: d.organizeImports,
+            },
+            {
+                id: "refactor.moveModule",
+                title: "Refactor: Move module…",
+                hint: d.activeFile ? "move file + fix requires" : "open a module first",
+                run: () =>
+                    d.activeFile
+                        ? d.setMoving(true)
+                        : d.toasts.push("error", "Open a module file to move it"),
+            },
             { id: "view.events", title: "Go to: Events", run: () => d.showView("events") },
             { id: "view.sync", title: "Go to: Sync", run: () => d.showView("sync") },
             { id: "view.runtime", title: "Go to: Runtime", run: () => d.showView("runtime") },
@@ -124,7 +141,7 @@ export function useEditorCommands(d: Deps): Command[] {
             d.backend, d.port, d.status, d.startSync, d.stopSync, d.build, d.test,
             d.testCommand, d.runTests, d.clearRuntime, d.toggle, d.showView, d.activeFile,
             d.toasts, d.showCallHierarchy, d.showFindUsages, d.showRequirers,
-            d.organizeRequires, d.openPalette,
+            d.organizeRequires, d.organizeImports, d.setMoving, d.openPalette,
         ],
     );
 }

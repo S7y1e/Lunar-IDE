@@ -176,7 +176,7 @@ export function getProjectDataModel(): Promise<DataModelNode | null> {
 }
 
 export type DependencyEdge = { from: string; to: string };
-export type UnresolvedRequire = { from: string; expr: string };
+export type UnresolvedRequire = { from: string; expr: string; line: number };
 
 export type DependencyGraph = {
     edges: DependencyEdge[];
@@ -228,6 +228,11 @@ export function organizeRequires(file: string): Promise<string | null> {
     return invoke("project_organize_requires", { file });
 }
 
+// Sort the whole top import block and drop unused requires. Returns new text or null.
+export function organizeImports(file: string): Promise<string | null> {
+    return invoke("project_organize_imports", { file });
+}
+
 export interface RenameLineEdit {
     file: string;
     line: number;
@@ -239,6 +244,12 @@ export interface RenameLineEdit {
 // WaitForChild/FindFirstChild), resolved over the owned model.
 export function renameEdits(file: string, newName: string): Promise<RenameLineEdit[]> {
     return invoke("project_rename_edits", { file, newName });
+}
+
+// Precise cross-file edits to move `file` to `newFile`: rewrites every dependent
+// require chain (and the moved file's own relative requires) to the destination.
+export function moveEdits(file: string, newFile: string): Promise<RenameLineEdit[]> {
+    return invoke("project_move_edits", { file, newFile });
 }
 
 const ProjectContext = createContext<ProjectSnapshot | null>(null);

@@ -151,21 +151,42 @@ pub(super) fn parse_chain_at(tokens: &[Tok], mut i: usize) -> Option<(ChainArg, 
                         _ => break,
                     },
                     Some(Tok::Colon) => {
-                        if let (
-                            Some(Tok::Ident(m)),
-                            Some(Tok::LParen),
-                            Some(Tok::Str(svc)),
-                            Some(Tok::RParen),
-                        ) = (
-                            tokens.get(i + 1),
-                            tokens.get(i + 2),
-                            tokens.get(i + 3),
-                            tokens.get(i + 4),
-                        ) {
-                            if m == "GetService" {
-                                segs = vec!["game".to_string(), svc.clone()];
-                                i += 5;
-                                continue;
+                        if let (Some(Tok::Ident(m)), Some(Tok::LParen), Some(Tok::Str(arg))) =
+                            (tokens.get(i + 1), tokens.get(i + 2), tokens.get(i + 3))
+                        {
+                            match m.as_str() {
+                                "GetService" => segs = vec!["game".to_string(), arg.clone()],
+                                // descend into the named child (the 2nd arg, a
+                                // WaitForChild timeout / FindFirstChild recurse flag,
+                                // is skipped by scanning to the closing paren).
+                                "WaitForChild" | "FindFirstChild" => segs.push(arg.clone()),
+                                _ => break,
+                            }
+                            match tokens.get(i + 4) {
+                                Some(Tok::RParen) => {
+                                    i += 5;
+                                    continue;
+                                }
+                                Some(_) => {
+                                    let mut j = i + 4;
+                                    let mut depth = 1;
+                                    while let Some(t) = tokens.get(j) {
+                                        match t {
+                                            Tok::LParen => depth += 1,
+                                            Tok::RParen => {
+                                                depth -= 1;
+                                                if depth == 0 {
+                                                    break;
+                                                }
+                                            }
+                                            _ => {}
+                                        }
+                                        j += 1;
+                                    }
+                                    i = j + 1;
+                                    continue;
+                                }
+                                None => break,
                             }
                         }
                         break;
@@ -205,6 +226,31 @@ mod tests {
                 _ => {}
             }
         }
+    }
+
+    fn path_of(src: &str) -> Vec<String> {
+        let toks = lex(src);
+        match parse_chain(&toks, 0) {
+            Some(ChainArg::Path(segs)) => segs,
+            _ => panic!("not a path chain"),
+        }
+    }
+
+    #[test]
+    fn chain_descends_through_waitforchild() {
+        assert_eq!(
+            path_of("Shared:WaitForChild(\"Hello\")"),
+            vec!["Shared", "Hello"]
+        );
+        assert_eq!(
+            path_of("game:GetService(\"ReplicatedStorage\"):WaitForChild(\"Shared\")"),
+            vec!["game", "ReplicatedStorage", "Shared"]
+        );
+        // FindFirstChild + a trailing arg, then a dotted descent
+        assert_eq!(
+            path_of("root:FindFirstChild(\"A\", true).B"),
+            vec!["root", "A", "B"]
+        );
     }
 
     #[test]
