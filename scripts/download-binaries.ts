@@ -7,7 +7,7 @@
  */
 
 import { join } from "path";
-import { mkdirSync, existsSync, writeFileSync, unlinkSync } from "fs";
+import { mkdirSync, existsSync, writeFileSync, unlinkSync, chmodSync } from "fs";
 import { unzipSync } from "fflate";
 
 const BINARIES_DIR = join(import.meta.dir, "../src-tauri/binaries");
@@ -151,7 +151,11 @@ async function main() {
         if (existsSync(srcPath)) {
           console.log(`  [${triple}] Reusing universal macOS binary`);
           const data = await Bun.file(srcPath).arrayBuffer();
+          // mode is only applied by writeFileSync when the file is newly created,
+          // so an overwrite of a pre-existing (e.g. checked-in) file would silently
+          // keep its old permissions — chmod explicitly to guarantee +x.
           writeFileSync(destPath, new Uint8Array(data), { mode: 0o755 });
+          chmodSync(destPath, 0o755);
         } else {
           console.log(`  [${triple}] Skipping (universal binary not yet written)`);
         }
@@ -177,7 +181,11 @@ async function main() {
         }
 
         const binary = extractBinaryFromZip(zipData, tool.binaryName, isWindows);
+        // mode is only applied by writeFileSync when the file is newly created,
+        // so an overwrite of a pre-existing (e.g. checked-in) file would silently
+        // keep its old permissions — chmod explicitly to guarantee +x on Unix.
         writeFileSync(destPath, binary, { mode: isWindows ? 0o644 : 0o755 });
+        if (!isWindows) chmodSync(destPath, 0o755);
         console.log(`  [${triple}] ✓ ${destFilename} (${(binary.length / 1024 / 1024).toFixed(1)} MB)`);
       } catch (err) {
         console.error(`  [${triple}] ✗ ${(err as Error).message}`);

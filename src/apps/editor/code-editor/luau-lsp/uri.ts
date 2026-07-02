@@ -8,7 +8,11 @@ export function pathToUri(path: string): string {
 // compare equal: backslash separators and an upper-case Windows drive letter.
 // luau-lsp emits the drive lower-case, the tree upper-case — without this they
 // dedupe as two different files and a duplicate tab opens.
+// Only Windows-style paths (drive letter, e.g. "C:/...") get this treatment —
+// POSIX paths have no drive letter to normalize and must keep "/" since that's
+// what the fs APIs on Linux/macOS expect.
 export function canonicalPath(path: string): string {
+    if (!/^\/?[A-Za-z]:/.test(path)) return path;
     let p = path.replace(/\//g, "\\");
     if (/^[a-z]:/.test(p)) p = p[0].toUpperCase() + p.slice(1);
     return p;
@@ -23,5 +27,8 @@ export function uriToPath(uri: string): string {
         path = decodeURIComponent(path);
     } catch {}
     if (/^\/[A-Za-z]:/.test(path)) path = path.slice(1);
-    return path.replace(/\//g, "\\");
+    // Only rewrite to backslashes for Windows drive-letter paths; POSIX paths
+    // must keep forward slashes to remain valid on Linux/macOS.
+    if (/^[A-Za-z]:/.test(path)) return path.replace(/\//g, "\\");
+    return path;
 }
